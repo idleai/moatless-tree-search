@@ -403,7 +403,16 @@ class StructuredOutput(BaseModel):
                 elif isinstance(obj, list):
                     return [unescape_values(v) for v in obj]
                 elif isinstance(obj, str) and "\\" in obj:
-                    return obj.encode().decode("unicode_escape")
+                    try:
+                        # Check for common problematic patterns
+                        if obj.endswith("\\") and not obj.endswith("\\\\"):
+                            # String ends with single backslash - likely incomplete escape
+                            logger.warning(f"String ends with single backslash, skipping unescape: {repr(obj)}")
+                            return obj
+                        return obj.encode().decode("unicode_escape")
+                    except UnicodeDecodeError as e:
+                        logger.warning(f"Failed to unescape string {repr(obj)}: {e}")
+                        return obj
                 return obj
 
             cleaned_data = unescape_values(parsed_data)

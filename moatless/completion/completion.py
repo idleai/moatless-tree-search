@@ -6,6 +6,7 @@ from textwrap import dedent
 from typing import Optional, Union, List, Any
 
 import litellm
+from litellm import Router
 import tenacity
 from litellm.exceptions import (
     BadRequestError,
@@ -94,6 +95,38 @@ class CompletionModel(BaseModel):
         default=False,
         description="Whether to include thoughts in the action or in the message",
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._router = None
+
+    @property
+    def router(self) -> Router:
+        """Get or create the LiteLLM router for load balancing between endpoints."""
+        
+        # ./llama-server -hf unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_XL -a "Qwen3-Coder-30B-A3B-Instruct-GGUF-Q4_K_XL" --tensor-split 1,0 --ctx-size 1048576 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8083 -np 4
+        if self._router is None:
+            model_list = [
+                {
+                    "model_name": "qwen-coder",
+                    "litellm_params": {
+                        "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
+                        "api_base": "http://localhost:8083/",
+                        "api_key": "noop",
+                    }
+                },
+                {
+                    "model_name": "qwen-coder",
+                    "litellm_params": {
+                        "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
+                        "api_base": "http://localhost:8084/",
+                        "api_key": "noop",
+                    }
+                }
+            ]
+            self._router = Router(model_list=model_list)
+            logger.info("Initialized LiteLLM router with endpoints: localhost:8083, localhost:8084")
+        return self._router
 
     def clone(self, **kwargs) -> "CompletionModel":
         """Create a copy of the completion model with optional parameter overrides.
@@ -279,15 +312,13 @@ class CompletionModel(BaseModel):
             ),
         )
         def _do_completion():
-            return litellm.completion(
-                model="openai/Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_XL",
+            return self.router.completion(
+                model="qwen-coder",
                 max_tokens=131072,
                 temperature=self.temperature,
                 messages=messages,
                 metadata=self.metadata or {},
                 timeout=self.timeout,
-                api_base="http://localhost:8082/",
-                api_key="noop",
                 stop=self.stop_words,
                 tools=tools,
                 tool_choice=tool_choice,
