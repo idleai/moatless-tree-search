@@ -105,7 +105,19 @@ class CompletionModel(BaseModel):
         """Get or create the LiteLLM router for load balancing between endpoints."""
         
         # ./llama-server -hf unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_XL -a "Qwen3-Coder-30B-A3B-Instruct-GGUF-Q4_K_XL" --tensor-split 1,0 --ctx-size 1048576 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8083 -np 4
+        # ./llama-server -hf unsloth/Qwen3-Coder-480B-A35B-Instruct-GGUF:Q2_K_L -a "Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L" --tensor-split 0.98,1.02 --ctx-size 131072 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8082 -np 1 --keep -1
         if self._router is None:
+            # model_list = [
+            #     {
+            #         "model_name": "qwen-coder",
+            #         "litellm_params": {
+            #             "model": "openai/Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L",
+            #             "api_base": "http://localhost:8082/",
+            #             "api_key": "noop",
+            #         }
+            #     }
+            # ]
+
             model_list = [
                 {
                     "model_name": "qwen-coder",

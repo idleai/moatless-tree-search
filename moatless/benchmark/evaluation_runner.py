@@ -203,7 +203,7 @@ class EvaluationRunner:
                 )
 
             benchmark_result = to_result(search_tree, eval_report=eval_result)
-            eval_result = benchmark_result
+            # eval_result = benchmark_result
 
             # Complete instance with result
             instance.complete(
@@ -230,7 +230,7 @@ class EvaluationRunner:
             if eval_result:
                 # Save evaluation result
                 with open(eval_result_path, "w") as f:
-                    json.dump(eval_result.model_dump(), f, indent=2, ensure_ascii=False)
+                    json.dump(eval_result, f, indent=2, ensure_ascii=False)
 
             # Clean up
             del runtime

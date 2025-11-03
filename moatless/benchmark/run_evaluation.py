@@ -450,7 +450,7 @@ async def run_evaluation(config: dict):
     runner = EvaluationRunner(
         evaluation=evaluation,
         num_workers=config["num_workers"],
-        use_testbed=False,
+        use_testbed=True,
         rerun_errors=config.get("rerun_errors", False),
     )
 
