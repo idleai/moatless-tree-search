@@ -452,6 +452,7 @@ async def run_evaluation(config: dict):
         num_workers=config["num_workers"],
         use_testbed=True,
         rerun_errors=config.get("rerun_errors", False),
+        evaluation_repository=repository,
     )
 
     # Add event handler

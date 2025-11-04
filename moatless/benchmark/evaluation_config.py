@@ -83,7 +83,7 @@ QWEN3_CONFIG = {
     "response_format": "tool_call",
     "message_history": "messages",
     "thoughts_in_action": False,
-    "split": "lite_and_verified_solvable",
+    "split": "easy",
 }
 
 # Configuration for single instance runs
