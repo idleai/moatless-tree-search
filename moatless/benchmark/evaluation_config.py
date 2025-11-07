@@ -75,9 +75,18 @@ CLAUDE_35_SONNET_CONFIG = {
     "split": "lite_and_verified_solvable",
 }
 
-QWEN3_CONFIG = {
+QWEN3_30B_CONFIG = {
     **DEFAULT_CONFIG,
-    # "base_url": "http://localhost:8082/",
+    "api_key": "noop",
+    "model": "qwen3-coder-30b-a3b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages",
+    "thoughts_in_action": False,
+    "split": "easy",
+}
+
+QWEN3_480B_CONFIG = {
+    **DEFAULT_CONFIG,
     "api_key": "noop",
     "model": "qwen3-coder-480b-a35b-instruct",
     "response_format": "tool_call",
@@ -85,6 +94,9 @@ QWEN3_CONFIG = {
     "thoughts_in_action": False,
     "split": "easy",
 }
+
+# keep the original config pointing to 30B as default
+QWEN3_CONFIG = QWEN3_30B_CONFIG
 
 # Configuration for single instance runs
 def get_single_instance_config(
