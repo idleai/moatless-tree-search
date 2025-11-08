@@ -95,6 +95,42 @@ QWEN3_480B_CONFIG = {
     "split": "easy",
 }
 
+# full MCTS configuration for Qwen3 30B model
+QWEN3_30B_MCTS_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop",
+    "model": "qwen3-coder-30b-a3b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages", 
+    "thoughts_in_action": False,
+    "split": "easy",  # 5 issues for testing
+    # full MCTS settings
+    "max_expansions": 3,
+    "max_iterations": 50,
+    "max_cost": 5.0,
+    "use_value_function": True,
+    "use_discriminator": True,
+    "use_feedback": False,
+}
+
+# full MCTS configuration for Qwen3 480B model  
+QWEN3_480B_MCTS_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop", 
+    "model": "qwen3-coder-480b-a35b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages",
+    "thoughts_in_action": False,
+    "split": "lite_and_verified",  # more issues for bigger model
+    # full MCTS settings
+    "max_expansions": 4,
+    "max_iterations": 75,
+    "max_cost": 10.0,
+    "use_value_function": True,
+    "use_discriminator": True,
+    "use_feedback": False, # this can be set to True
+}
+
 # keep the original config pointing to 30B as default
 QWEN3_CONFIG = QWEN3_30B_CONFIG
 
