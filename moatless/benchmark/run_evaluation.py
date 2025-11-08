@@ -434,7 +434,7 @@ async def run_evaluation(config: dict):
     
     if config.get("use_value_function", False):
         from moatless.value_function.base import ValueFunction
-        value_function = ValueFunction(completion=model_settings)
+        value_function = ValueFunction(completion_model=model_settings)
         
     if config.get("use_discriminator", False):
         from moatless.discriminator import AgentDiscriminator
