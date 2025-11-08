@@ -426,12 +426,42 @@ async def run_evaluation(config: dict):
         thoughts_in_action=config.get("thoughts_in_action", False),
     )
 
+    # create full MCTS components if enabled
+    selector = None
+    value_function = None
+    discriminator = None
+    feedback_generator = None
+    
+    if config.get("use_value_function", False):
+        from moatless.value_function.base import ValueFunction
+        value_function = ValueFunction(completion=model_settings)
+        
+    if config.get("use_discriminator", False):
+        from moatless.discriminator import AgentDiscriminator
+        discriminator = AgentDiscriminator(
+            completion=model_settings,
+            n_agents=3,
+            n_rounds=2
+        )
+        
+    if config.get("use_feedback", False):
+        from moatless.feedback.feedback import FeedbackGenerator
+        feedback_generator = FeedbackGenerator()
+        
+    if config.get("max_expansions", 1) > 1:
+        from moatless.selector import BestFirstSelector
+        selector = BestFirstSelector()
+
     tree_search_settings = TreeSearchSettings(
         max_iterations=config["max_iterations"],
         max_expansions=config["max_expansions"],
         max_cost=config["max_cost"],
         model=model_settings,
         agent_settings=agent_settings,
+        selector=selector,
+        value_function=value_function,
+        discriminator=discriminator,
+        feedback_generator=feedback_generator,
     )
 
     evaluation = create_evaluation(
