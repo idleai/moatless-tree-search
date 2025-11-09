@@ -104,13 +104,16 @@ QWEN3_30B_MCTS_CONFIG = {
     "message_history": "messages", 
     "thoughts_in_action": False,
     "split": "easy",  # 5 issues for testing
+    "temperature": 0.7,
     # full MCTS settings
     "max_expansions": 3,
     "max_iterations": 50,
     "max_cost": 5.0,
+    "min_finished_nodes": 2,
+    "max_finished_nodes": 3,
     "use_value_function": True,
     "use_discriminator": True,
-    "use_feedback": False,
+    "use_feedback": True,
 }
 
 # full MCTS configuration for Qwen3 480B model  
@@ -123,12 +126,15 @@ QWEN3_480B_MCTS_CONFIG = {
     "thoughts_in_action": False,
     "split": "lite_and_verified",  # more issues for bigger model
     # full MCTS settings
+    "temperature": 0.7,
     "max_expansions": 4,
-    "max_iterations": 75,
+    "max_iterations": 100,
     "max_cost": 10.0,
+    "min_finished_nodes": 2,
+    "max_finished_nodes": 3,
     "use_value_function": True,
     "use_discriminator": True,
-    "use_feedback": False, # this can be set to True
+    "use_feedback": True,
 }
 
 # keep the original config pointing to 30B as default

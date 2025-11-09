@@ -440,8 +440,8 @@ async def run_evaluation(config: dict):
         from moatless.discriminator import AgentDiscriminator
         discriminator = AgentDiscriminator(
             completion=model_settings,
-            n_agents=3,
-            n_rounds=2
+            n_agents=5,
+            n_rounds=3
         )
         
     if config.get("use_feedback", False):
