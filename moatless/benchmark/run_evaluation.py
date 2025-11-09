@@ -395,15 +395,38 @@ async def run_evaluation(config: dict):
 
     repository = EvaluationFileRepository(os.getenv("MOATLESS_DIR", "./evals"))
 
+    # check if we are using a custom dataset split or official split
+    custom_splits = ["easy", "lite_and_verified", "lite_and_verified_solvable", 
+                     "lite_split_1", "lite_split_2", "small"]
+    official_splits = ["verified", "lite"]
+
     if config.get("instance_ids"):
+        # specific instances requested via config
         instance_ids = config.get("instance_ids")
-    else:
+        split = config.get("split", "lite")
+    elif config["split"] in custom_splits:
+        # custom split: load instance IDs from datasets/ directory
         dataset = load_dataset_split(config["split"])
         if dataset is None:
             console_logger.error(f"Dataset split '{config['split']}' not found")
             file_logger.error(f"Dataset split '{config['split']}' not found")
             sys.exit(1)
         instance_ids = dataset.instance_ids
+        # map custom splits to their base official split
+        split = "verified" if "verified" in config["split"] else "lite"
+        console_logger.info(f"Loaded {len(instance_ids)} instances from custom split '{config['split']}'")
+        file_logger.info(f"Loaded {len(instance_ids)} instances from custom split '{config['split']}'")
+    elif config["split"] in official_splits:
+        # official split: create_evaluation load all instances from swebench files
+        instance_ids = None
+        split = config["split"]
+        console_logger.info(f"Using official split '{split}' - will load all instances")
+        file_logger.info(f"Using official split '{split}' - will load all instances")
+    else:
+        error_msg = f"Unknown split '{config['split']}'. Must be one of: {official_splits + custom_splits}"
+        console_logger.error(error_msg)
+        file_logger.error(error_msg)
+        sys.exit(1)
 
     model_settings = CompletionModel(
         model=config["model"],
@@ -468,6 +491,7 @@ async def run_evaluation(config: dict):
         repository=repository,
         evaluation_name=evaluation_name,
         settings=tree_search_settings,
+        split=split,
         instance_ids=instance_ids,
     )
 
@@ -494,6 +518,14 @@ async def run_evaluation(config: dict):
     )
 
     try:
+        # get instance_ids from evaluation if not provided
+        if instance_ids is None:
+            # load instance_ids from the created evaluation
+            evaluation_instances = repository.list_instances(evaluation_name)
+            instance_ids = [inst.instance_id for inst in evaluation_instances]
+            console_logger.info(f"Loaded {len(instance_ids)} instances from evaluation")
+            file_logger.info(f"Loaded {len(instance_ids)} instances from evaluation")
+        
         # Run evaluation
         await loop.run_in_executor(
             ThreadPoolExecutor(),
