@@ -127,6 +127,7 @@ QWEN3_480B_MCTS_CONFIG = {
     "split": "lite_and_verified",  # more issues for bigger model
     # full MCTS settings
     "temperature": 0.7,
+    "timeout": 300.0,
     "max_expansions": 4,
     "max_iterations": 100,
     "max_cost": 10.0,

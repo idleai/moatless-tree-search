@@ -432,6 +432,7 @@ async def run_evaluation(config: dict):
         model=config["model"],
         temperature=config.get("temperature", 0.0),
         max_tokens=3000,
+        timeout=config.get("timeout", 120.0),
         api_key=config.get("api_key"),
         base_url=config.get("base_url"),
         response_format=LLMResponseFormat(config["response_format"])
