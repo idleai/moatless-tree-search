@@ -445,8 +445,8 @@ async def run_evaluation(config: dict):
         )
         
     if config.get("use_feedback", False):
-        from moatless.feedback.feedback import FeedbackGenerator
-        feedback_generator = FeedbackGenerator()
+        from moatless.feedback.reward_feedback import RewardFeedbackGenerator
+        feedback_generator = RewardFeedbackGenerator()
         
     if config.get("max_expansions", 1) > 1:
         from moatless.selector import BestFirstSelector
