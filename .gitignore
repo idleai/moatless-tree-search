@@ -175,3 +175,5 @@ Pipfile
 **/moatless-testbeds
 evals
 testbeds
+
+moatless/datasets

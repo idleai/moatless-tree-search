@@ -14,6 +14,7 @@ from moatless.benchmark.report import (
     create_sha256_hash,
     to_result,
 )
+from moatless.benchmark.repository import EvaluationRepository
 from moatless.benchmark.schema import (
     TreeSearchSettings,
     Evaluation,
@@ -60,6 +61,7 @@ class EvaluationRunner:
         num_workers: int = 1,
         use_testbed: bool = False,
         rerun_errors: bool = True,
+        evaluation_repository: Union[EvaluationRepository, None] = None,
     ):
         self._event_handlers: List[Callable[[EvaluationEvent], None]] = []
 
@@ -74,6 +76,7 @@ class EvaluationRunner:
         self.num_workers = num_workers
         self.use_testbed = use_testbed
         self.rerun_errors = rerun_errors
+        self.evaluation_repository = evaluation_repository
 
     def add_event_handler(self, handler: Callable[[EvaluationEvent], None]):
         """Add an event handler to receive evaluation events"""
@@ -203,11 +206,16 @@ class EvaluationRunner:
                 )
 
             benchmark_result = to_result(search_tree, eval_report=eval_result)
+            # eval_result = benchmark_result
 
             # Complete instance with result
             instance.complete(
                 resolved=benchmark_result.resolved, benchmark_result=benchmark_result
             )
+
+            if self.evaluation_repository:
+                self.evaluation_repository.save_instance(self.evaluation.evaluation_name, instance)
+
             self.emit_event(
                 "instance_completed",
                 {
@@ -218,8 +226,6 @@ class EvaluationRunner:
                     else None,
                 },
             )
-            return benchmark_result
-
         except Exception as e:
             stacktrace = traceback.format_exc()
             instance.fail(error=stacktrace)
@@ -231,7 +237,7 @@ class EvaluationRunner:
             if eval_result:
                 # Save evaluation result
                 with open(eval_result_path, "w") as f:
-                    json.dump(eval_result, f, indent=2)
+                    json.dump(eval_result, f, indent=2, ensure_ascii=False)
 
             # Clean up
             del runtime
@@ -239,6 +245,9 @@ class EvaluationRunner:
             del search_tree
             del eval_result
             gc.collect()
+
+            return benchmark_result
+
 
     def evaluate_nodes(
         self,
@@ -469,7 +478,8 @@ class EvaluationRunner:
         search_tree.add_event_handler(tree_event_handler)
         search_tree.run_search()
 
-        self.emit_event("instance_completed", {"instance_id": instance.instance_id})
+        # NOTE: instance_completed is handled in evaluate_instance
+        # self.emit_event("instance_completed", {"instance_id": instance.instance_id})
 
         return search_tree
 

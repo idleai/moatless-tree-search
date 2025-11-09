@@ -104,7 +104,28 @@ class EvaluationFileRepository(EvaluationRepository):
         """Save an instance to disk."""
         with self._repo_lock:
             evaluation = self.load_evaluation(evaluation_name)
-            # TODO: Add or update instance on evaluation
+            if not evaluation:
+                logger.error(f"Evaluation {evaluation_name} not found, cannot save instance {instance.instance_id}")
+                raise ValueError(f"Evaluation {evaluation_name} not found")
+
+            # Find existing instance or add new one
+            existing_index = None
+            for i, existing_instance in enumerate(evaluation.instances):
+                if existing_instance.instance_id == instance.instance_id:
+                    existing_index = i
+                    break
+
+            if existing_index is not None:
+                # Update existing instance
+                evaluation.instances[existing_index] = instance
+                logger.debug(f"Updated existing instance {instance.instance_id} in evaluation {evaluation_name}")
+            else:
+                # Add new instance
+                evaluation.instances.append(instance)
+                logger.debug(f"Added new instance {instance.instance_id} to evaluation {evaluation_name}")
+
+            # Save the updated evaluation
+            self.save_evaluation(evaluation)
 
     def load_instance(
         self, evaluation_name: str, instance_id: str
@@ -113,15 +134,35 @@ class EvaluationFileRepository(EvaluationRepository):
 
         evaluation = self.load_evaluation(evaluation_name)
         return next(
-            instance
+            (instance
             for instance in evaluation.instances
-            if instance.instance_id == instance_id
+            if instance.instance_id == instance_id),
+            None
         )
 
     def delete_instance(self, evaluation_name: str, instance_id: str) -> None:
-        """Delete an instance directory."""
+        """Delete an instance from the evaluation."""
+        with self._repo_lock:
+            evaluation = self.load_evaluation(evaluation_name)
+            if not evaluation:
+                logger.error(f"Evaluation {evaluation_name} not found, cannot delete instance {instance_id}")
+                raise ValueError(f"Evaluation {evaluation_name} not found")
 
-        # TODO: Update evaluation.instances
+            # Find the instance to delete
+            initial_count = len(evaluation.instances)
+            evaluation.instances = [
+                instance for instance in evaluation.instances
+                if instance.instance_id != instance_id
+            ]
+
+            if len(evaluation.instances) == initial_count:
+                logger.warning(f"Instance {instance_id} not found in evaluation {evaluation_name}")
+                return  # Instance wasn't found, nothing to delete
+
+            logger.debug(f"Deleted instance {instance_id} from evaluation {evaluation_name}")
+
+            # Save the updated evaluation
+            self.save_evaluation(evaluation)
 
     def list_instances(self, evaluation_name: str) -> List[EvaluationInstance]:
         """List all instances for an evaluation."""

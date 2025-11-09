@@ -75,6 +75,71 @@ CLAUDE_35_SONNET_CONFIG = {
     "split": "lite_and_verified_solvable",
 }
 
+QWEN3_30B_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop",
+    "model": "qwen3-coder-30b-a3b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages",
+    "thoughts_in_action": False,
+    "split": "easy",
+}
+
+QWEN3_480B_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop",
+    "model": "qwen3-coder-480b-a35b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages",
+    "thoughts_in_action": False,
+    "split": "easy",
+}
+
+# full MCTS configuration for Qwen3 30B model
+QWEN3_30B_MCTS_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop",
+    "model": "qwen3-coder-30b-a3b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages", 
+    "thoughts_in_action": False,
+    "split": "easy",  # 5 issues for testing
+    "temperature": 0.7,
+    # full MCTS settings
+    "max_expansions": 3,
+    "max_iterations": 50,
+    "max_cost": 5.0,
+    "min_finished_nodes": 2,
+    "max_finished_nodes": 3,
+    "use_value_function": True,
+    "use_discriminator": True,
+    "use_feedback": False,
+}
+
+# full MCTS configuration for Qwen3 480B model  
+QWEN3_480B_MCTS_CONFIG = {
+    **DEFAULT_CONFIG,
+    "api_key": "noop", 
+    "model": "qwen3-coder-480b-a35b-instruct",
+    "response_format": "tool_call",
+    "message_history": "messages",
+    "thoughts_in_action": False,
+    "split": "lite_and_verified",  # more issues for bigger model
+    # full MCTS settings
+    "temperature": 0.7,
+    "timeout": 300.0,
+    "max_expansions": 4,
+    "max_iterations": 100,
+    "max_cost": 10.0,
+    "min_finished_nodes": 2,
+    "max_finished_nodes": 3,
+    "use_value_function": True,
+    "use_discriminator": True,
+    "use_feedback": False,
+}
+
+# keep the original config pointing to 30B as default
+QWEN3_CONFIG = QWEN3_30B_CONFIG
 
 # Configuration for single instance runs
 def get_single_instance_config(
@@ -98,7 +163,7 @@ DJANGO_17051_GPT4 = get_single_instance_config(
 )
 
 # Active configuration - change this to switch between configs
-ACTIVE_CONFIG = DJANGO_17051_DEEPSEEK  # Change this to run different configurations
+ACTIVE_CONFIG = QWEN3_CONFIG  # Change this to run different configurations
 
 
 def get_config() -> dict:
