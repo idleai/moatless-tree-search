@@ -407,7 +407,7 @@ async def run_evaluation(config: dict):
 
     model_settings = CompletionModel(
         model=config["model"],
-        temperature=0.0,
+        temperature=config.get("temperature", 0.0),
         max_tokens=3000,
         api_key=config.get("api_key"),
         base_url=config.get("base_url"),

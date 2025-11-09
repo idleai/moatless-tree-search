@@ -113,7 +113,7 @@ QWEN3_30B_MCTS_CONFIG = {
     "max_finished_nodes": 3,
     "use_value_function": True,
     "use_discriminator": True,
-    "use_feedback": True,
+    "use_feedback": False,
 }
 
 # full MCTS configuration for Qwen3 480B model  
@@ -134,7 +134,7 @@ QWEN3_480B_MCTS_CONFIG = {
     "max_finished_nodes": 3,
     "use_value_function": True,
     "use_discriminator": True,
-    "use_feedback": True,
+    "use_feedback": False,
 }
 
 # keep the original config pointing to 30B as default
