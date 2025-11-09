@@ -396,7 +396,7 @@ async def run_evaluation(config: dict):
     repository = EvaluationFileRepository(os.getenv("MOATLESS_DIR", "./evals"))
 
     # check if we are using a custom dataset split or official split
-    custom_splits = ["easy", "lite_and_verified", "lite_and_verified_solvable", 
+    custom_splits = ["easy", "medium", "lite_and_verified", "lite_and_verified_solvable",
                      "lite_split_1", "lite_split_2", "small"]
     official_splits = ["verified", "lite"]
 

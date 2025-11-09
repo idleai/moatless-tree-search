@@ -1,0 +1,26 @@
+{
+  "name": "medium",
+  "description": "Balanced sample of 20 instances across repositories and difficulty levels",
+  "instance_ids": [
+    "django__django-11133",
+    "sympy__sympy-13647",
+    "sympy__sympy-22714",
+    "scikit-learn__scikit-learn-13779",
+    "scikit-learn__scikit-learn-13439",
+    "sympy__sympy-21847",
+    "scikit-learn__scikit-learn-10297",
+    "scikit-learn__scikit-learn-13496",
+    "sphinx-doc__sphinx-8721",
+    "matplotlib__matplotlib-23314",
+    "pytest-dev__pytest-7432",
+    "astropy__astropy-12907",
+    "matplotlib__matplotlib-24970",
+    "django__django-13158",
+    "pytest-dev__pytest-7490",
+    "pydata__xarray-4094",
+    "pylint-dev__pylint-7080",
+    "astropy__astropy-14182",
+    "astropy__astropy-14365",
+    "matplotlib__matplotlib-25311"
+  ]
+}
