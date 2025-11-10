@@ -103,7 +103,7 @@ QWEN3_30B_MCTS_CONFIG = {
     "response_format": "tool_call",
     "message_history": "messages", 
     "thoughts_in_action": False,
-    "split": "easy",  # 5 issues for testing
+    "split": "medium",  # 20 balanced issues for testing
     "temperature": 0.7,
     # full MCTS settings
     "max_expansions": 3,

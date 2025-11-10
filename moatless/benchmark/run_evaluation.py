@@ -92,11 +92,12 @@ def setup_loggers(logs_dir: str):
 
 def load_dataset_split(dataset_name: str) -> Optional[EvaluationDatasetSplit]:
     """Load a dataset split from the datasets directory."""
-    dataset_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "datasets",
-        f"{dataset_name}_dataset.json",
-    )
+    # dataset_path = os.path.join(
+    #     os.path.dirname(os.path.dirname(__file__)),
+    #     "datasets",
+    #     f"{dataset_name}_dataset.json",
+    # )
+    dataset_path = "/home/idlecs229/repos/moatless-tree-search/datasets/medium_dataset.json"
     if not os.path.exists(dataset_path):
         return None
 
