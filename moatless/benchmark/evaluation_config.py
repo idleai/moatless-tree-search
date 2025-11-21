@@ -83,6 +83,8 @@ QWEN3_30B_CONFIG = {
     "message_history": "messages",
     "thoughts_in_action": False,
     "split": "easy",
+    "max_iterations": 50,
+    "timeout": 300000.0
 }
 
 QWEN3_480B_CONFIG = {
@@ -114,6 +116,7 @@ QWEN3_30B_MCTS_CONFIG = {
     "use_value_function": True,
     "use_discriminator": True,
     "use_feedback": False,
+    "timeout": 300000.0,
 }
 
 # full MCTS configuration for Qwen3 480B model  

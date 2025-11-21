@@ -159,6 +159,7 @@ class EvaluationRunner:
             instance = EvaluationInstance(instance_id=instance_id)
             self.evaluation.instances.append(instance)
 
+        benchmark_result = None
         try:
             moatless_instance = get_moatless_instance(instance_id=instance_id)
             problem_statement = f"<task>\nSolve the following reported issue in the {moatless_instance['repo']} repository:\n\n{moatless_instance['problem_statement']}\n</task>"

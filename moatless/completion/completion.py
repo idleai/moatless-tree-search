@@ -74,7 +74,7 @@ class CompletionModel(BaseModel):
         2000, description="The maximum number of tokens to generate"
     )
     timeout: float = Field(
-        120.0, description="The timeout in seconds for completion requests"
+        1200000.0, description="The timeout in seconds for completion requests"
     )
     model_base_url: Optional[str] = Field(
         default=None, description="The base URL for the model API"

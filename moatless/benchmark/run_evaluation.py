@@ -92,12 +92,12 @@ def setup_loggers(logs_dir: str):
 
 def load_dataset_split(dataset_name: str) -> Optional[EvaluationDatasetSplit]:
     """Load a dataset split from the datasets directory."""
-    # dataset_path = os.path.join(
-    #     os.path.dirname(os.path.dirname(__file__)),
-    #     "datasets",
-    #     f"{dataset_name}_dataset.json",
-    # )
-    dataset_path = "/home/idlecs229/repos/moatless-tree-search/datasets/medium_dataset.json"
+    dataset_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "datasets",
+        f"{dataset_name}_dataset.json",
+    )
+    # dataset_path = "/home/idlecs229/repos/moatless-tree-search/datasets/medium_dataset.json"
     if not os.path.exists(dataset_path):
         return None
 
@@ -433,7 +433,7 @@ async def run_evaluation(config: dict):
         model=config["model"],
         temperature=config.get("temperature", 0.0),
         max_tokens=3000,
-        timeout=config.get("timeout", 120.0),
+        timeout=config.get("timeout", 300000.0),
         api_key=config.get("api_key"),
         base_url=config.get("base_url"),
         response_format=LLMResponseFormat(config["response_format"])
