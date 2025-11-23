@@ -1,0 +1,19 @@
+# Note: This project uses Poetry for dependency management.
+# Most dependencies (pandas, numpy, matplotlib, plotly, scipy) are already in pyproject.toml
+# 
+# To install analysis dependencies with Poetry:
+#   poetry install --with analysis
+#
+# This file lists only the additional packages needed for analysis:
+scikit-learn>=1.3.0
+seaborn>=0.12.0
+jupyter>=1.0.0
+plotly>=5.14.0
+#
+# Already in main dependencies:
+# pandas>=2.0.0
+# numpy>=1.24.0
+# matplotlib>=3.7.0
+# plotly>=5.14.0
+# scipy>=1.10.0
+
