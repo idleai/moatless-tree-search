@@ -1,0 +1,494 @@
+{
+  "node_results": {
+    "21": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7f4e6978aba8>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.58s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "24": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7f4e6978aba8>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.58s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "25": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7f4e6978aba8>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.58s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "34": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7f4e6978aba8>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.58s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "47": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7fa7adf44b38>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.37s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "49": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7fa7adf44b38>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.37s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "48": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7fa7adf44b38>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp_6gsq38p/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.37s ========================\nUpdated 1 path from 0b34bd89f\n"
+    },
+    "22": {
+      "run_id": null,
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_make_pipeline_memory"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "sklearn/tests/test_pipeline.py::test_pipeline_init",
+            "sklearn/tests/test_pipeline.py::test_pipeline_init_tuple",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_anova",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_params",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported",
+            "sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm",
+            "sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict",
+            "sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params",
+            "sklearn/tests/test_pipeline.py::test_predict_with_predict_params",
+            "sklearn/tests/test_pipeline.py::test_feature_union",
+            "sklearn/tests/test_pipeline.py::test_make_union",
+            "sklearn/tests/test_pipeline.py::test_make_union_kwargs",
+            "sklearn/tests/test_pipeline.py::test_pipeline_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_fit_transform",
+            "sklearn/tests/test_pipeline.py::test_pipeline_slice",
+            "sklearn/tests/test_pipeline.py::test_pipeline_index",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_named_steps",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]",
+            "sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]",
+            "sklearn/tests/test_pipeline.py::test_pipeline_ducktyping",
+            "sklearn/tests/test_pipeline.py::test_make_pipeline",
+            "sklearn/tests/test_pipeline.py::test_feature_union_weights",
+            "sklearn/tests/test_pipeline.py::test_feature_union_parallel",
+            "sklearn/tests/test_pipeline.py::test_feature_union_feature_names",
+            "sklearn/tests/test_pipeline.py::test_classes_property",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_steps",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]",
+            "sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]",
+            "sklearn/tests/test_pipeline.py::test_step_name_validation",
+            "sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline",
+            "sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory",
+            "sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute",
+            "sklearn/tests/test_pipeline.py::test_pipeline_memory"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from 0b34bd89f\nChecking patch sklearn/tests/test_pipeline.py...\nApplied patch sklearn/tests/test_pipeline.py cleanly.\n>>>>> Run tests\n============================= test session starts ==============================\nplatform linux -- Python 3.6.13, pytest-6.2.4, py-1.11.0, pluggy-0.13.1\nrootdir: /testbed, configfile: setup.cfg\ncollected 41 items\n\nsklearn/tests/test_pipeline.py ......................................... [100%]\n\n==================================== PASSES ====================================\n_____________________________ test_pipeline_memory _____________________________\n----------------------------- Captured stdout call -----------------------------\n________________________________________________________________________________\n[Memory] Calling sklearn.pipeline._fit_transform_one...\n_fit_transform_one(<sklearn.tests.test_pipeline.DummyTransf object at 0x7f4e6978aba8>, array([[5.1, ..., 0.2],\n       ...,\n       [5.9, ..., 1.8]]), array([0, ..., 2]), None)\n________________________________________________fit_transform_one - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n[Memory]0.0s, 0.0min    : Loading _fit_transform_one from /tmp/tmp83cc9ayw/joblib/sklearn/pipeline/_fit_transform_one/f021198b76a1401a026f06f47f4d8142\n___________________________________fit_transform_one cache loaded - 0.0s, 0.0min\n=========================== short test summary info ============================\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_init_tuple\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_anova\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_supported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_sample_weight_unsupported\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_raise_set_params_error\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_pca_svm\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_methods_preprocessing_svm\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_on_pipeline_without_fit_predict\nPASSED sklearn/tests/test_pipeline.py::test_fit_predict_with_intermediate_fit_params\nPASSED sklearn/tests/test_pipeline.py::test_predict_with_predict_params\nPASSED sklearn/tests/test_pipeline.py::test_feature_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union\nPASSED sklearn/tests/test_pipeline.py::test_make_union_kwargs\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_fit_transform\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_slice\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_index\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_named_steps\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[None]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_correctly_adjusts_steps[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[None]\nPASSED sklearn/tests/test_pipeline.py::test_set_pipeline_step_passthrough[passthrough]\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_ducktyping\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_weights\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_parallel\nPASSED sklearn/tests/test_pipeline.py::test_feature_union_feature_names\nPASSED sklearn/tests/test_pipeline.py::test_classes_property\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_steps\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[drop]\nPASSED sklearn/tests/test_pipeline.py::test_set_feature_union_step_drop[None]\nPASSED sklearn/tests/test_pipeline.py::test_step_name_validation\nPASSED sklearn/tests/test_pipeline.py::test_set_params_nested_pipeline\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_wrong_memory\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_with_cache_attribute\nPASSED sklearn/tests/test_pipeline.py::test_pipeline_memory\nPASSED sklearn/tests/test_pipeline.py::test_make_pipeline_memory\n======================== 41 passed, 2 warnings in 1.58s ========================\nUpdated 1 path from 0b34bd89f\n"
+    }
+  },
+  "status": "started",
+  "start_time": "2025-11-10T03:21:25.359054+00:00"
+}

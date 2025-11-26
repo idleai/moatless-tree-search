@@ -1,0 +1,38 @@
+{
+  "node_results": {
+    "26": {
+      "run_id": null,
+      "instance_id": "sympy__sympy-22714",
+      "patch_applied": true,
+      "resolved": false,
+      "tests_status": {
+        "status": "RESOLVED_NO",
+        "fail_to_pass": {
+          "success": [],
+          "failure": [
+            "test_issue_22684"
+          ]
+        },
+        "pass_to_pass": {
+          "success": [
+            "test_point",
+            "test_point3D",
+            "test_Point2D",
+            "test_issue_9214",
+            "test_issue_11617",
+            "test_transform",
+            "test_concyclic_doctest_bug",
+            "test_arguments",
+            "test_unit",
+            "test_dot",
+            "test__normalize_dimension"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from f1caf41aa5\nChecking patch sympy/geometry/tests/test_point.py...\nApplied patch sympy/geometry/tests/test_point.py cleanly.\n>>>>> Run tests\n============================= test process starts ==============================\nexecutable:         /opt/miniconda3/envs/testbed/bin/python  (3.9.20-final-0) [CPython]\narchitecture:       64-bit\ncache:              no\nground types:       python \nnumpy:              None\nrandom seed:        64532085\nhash randomization: on (PYTHONHASHSEED=1500230975)\n\nsympy/geometry/tests/test_point.py[13] \ntest_point ok\ntest_point3D ok\ntest_Point2D ok\ntest_issue_9214 ok\ntest_issue_11617 ok\ntest_transform ok\ntest_concyclic_doctest_bug ok\ntest_arguments ok\ntest_unit ok\ntest_dot ok\ntest__normalize_dimension ok\ntest_issue_22684 E\ntest_direction_cosine ok                                                  [FAIL]\n\n\n________________________________________________________________________________\n_____________ sympy/geometry/tests/test_point.py:test_issue_22684 ______________\nTraceback (most recent call last):\n  File \"/testbed/sympy/geometry/tests/test_point.py\", line 459, in test_issue_22684\n    Point(1, 2)\n  File \"/testbed/sympy/geometry/point.py\", line 156, in __new__\n    raise ValueError('Imaginary coordinates are not permitted.')\nValueError: Imaginary coordinates are not permitted.\n\n=========== tests finished: 12 passed, 1 exceptions, in 4.28 seconds ===========\nDO *NOT* COMMIT!\nUpdated 1 path from f1caf41aa5\n"
+    }
+  },
+  "status": "started",
+  "start_time": "2025-11-10T03:21:25.197835+00:00"
+}

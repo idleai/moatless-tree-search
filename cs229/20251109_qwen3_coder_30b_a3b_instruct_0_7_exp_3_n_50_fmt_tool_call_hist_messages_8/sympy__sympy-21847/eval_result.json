@@ -1,0 +1,66 @@
+{
+  "node_results": {
+    "49": {
+      "run_id": null,
+      "instance_id": "sympy__sympy-21847",
+      "patch_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "status": "RESOLVED_FULL",
+        "fail_to_pass": {
+          "success": [
+            "test_monomials"
+          ],
+          "failure": []
+        },
+        "pass_to_pass": {
+          "success": [
+            "test_monomial_count",
+            "test_monomial_mul",
+            "test_monomial_div",
+            "test_monomial_gcd",
+            "test_monomial_lcm",
+            "test_monomial_max",
+            "test_monomial_pow",
+            "test_monomial_min",
+            "test_monomial_divides"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from af271a28d4\nChecking patch sympy/polys/tests/test_monomials.py...\nApplied patch sympy/polys/tests/test_monomials.py cleanly.\n>>>>> Run tests\n============================= test process starts ==============================\nexecutable:         /opt/miniconda3/envs/testbed/bin/python  (3.9.20-final-0) [CPython]\narchitecture:       64-bit\ncache:              no\nground types:       python \nnumpy:              None\nrandom seed:        39632996\nhash randomization: on (PYTHONHASHSEED=2868741703)\n\nsympy/polys/tests/test_monomials.py[11] \ntest_monomials ok\ntest_monomial_count ok\ntest_monomial_mul ok\ntest_monomial_div ok\ntest_monomial_gcd ok\ntest_monomial_lcm ok\ntest_monomial_max ok\ntest_monomial_pow ok\ntest_monomial_min ok\ntest_monomial_divides ok\ntest_Monomial ok                                                            [OK]\n\n\n================== tests finished: 11 passed, in 0.21 seconds ==================\nUpdated 1 path from af271a28d4\n"
+    },
+    "11": {
+      "run_id": null,
+      "instance_id": "sympy__sympy-21847",
+      "patch_applied": true,
+      "resolved": false,
+      "tests_status": {
+        "status": "RESOLVED_NO",
+        "fail_to_pass": {
+          "success": [],
+          "failure": [
+            "test_monomials"
+          ]
+        },
+        "pass_to_pass": {
+          "success": [
+            "test_monomial_count",
+            "test_monomial_mul",
+            "test_monomial_div",
+            "test_monomial_gcd",
+            "test_monomial_lcm",
+            "test_monomial_max",
+            "test_monomial_pow",
+            "test_monomial_min",
+            "test_monomial_divides"
+          ],
+          "failure": []
+        }
+      },
+      "output": "Updated 0 paths from af271a28d4\nChecking patch sympy/polys/tests/test_monomials.py...\nApplied patch sympy/polys/tests/test_monomials.py cleanly.\n>>>>> Run tests\n============================= test process starts ==============================\nexecutable:         /opt/miniconda3/envs/testbed/bin/python  (3.9.20-final-0) [CPython]\narchitecture:       64-bit\ncache:              no\nground types:       python \nnumpy:              None\nrandom seed:        65290238\nhash randomization: on (PYTHONHASHSEED=3253115389)\n\nsympy/polys/tests/test_monomials.py[11] \ntest_monomials F\ntest_monomial_count ok\ntest_monomial_mul ok\ntest_monomial_div ok\ntest_monomial_gcd ok\ntest_monomial_lcm ok\ntest_monomial_max ok\ntest_monomial_pow ok\ntest_monomial_min ok\ntest_monomial_divides ok\ntest_Monomial ok                                                          [FAIL]\n\n\n________________________________________________________________________________\n______________ sympy/polys/tests/test_monomials.py:test_monomials ______________\nTraceback (most recent call last):\n  File \"/testbed/sympy/polys/tests/test_monomials.py\", line 116, in test_monomials\n    assert set(itermonomials([x, y], 3, 3)) == {x**3, x**2*y, x*y**2, y**3}\nAssertionError\n\n============= tests finished: 10 passed, 1 failed, in 0.12 seconds =============\nDO *NOT* COMMIT!\nUpdated 1 path from af271a28d4\n"
+    }
+  },
+  "status": "started",
+  "start_time": "2025-11-10T03:21:25.327418+00:00"
+}
