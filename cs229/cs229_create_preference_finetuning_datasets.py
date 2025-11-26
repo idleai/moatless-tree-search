@@ -420,6 +420,7 @@ if __name__ == "__main__":
 
     dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
     output_dir = "./datasets"
+    os.makedirs(output_dir, exist_ok=True)
     issues = os.listdir(dir)
 
     for folder in issues:
@@ -446,7 +447,7 @@ if __name__ == "__main__":
     last_two_folders = [folder.split("/")[-1] for folder in issues[-2:]]
     df_train = df[df.trajectory_id.isin(first_sans_two_folders)]
     df_test = df[df.trajectory_id.isin(last_two_folders)]
-    df.to_csv(os.path.join(f"{dir.split('/')[-1]}_trajectories.csv"))
+    df.to_csv(os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories.csv"))
     df_train.to_csv(
         os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_train.csv")
     )
