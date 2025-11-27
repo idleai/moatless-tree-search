@@ -404,24 +404,22 @@ if __name__ == "__main__":
     ### EXTRACT TRAJECTORIES FROM PAST RUNS ###
     ###########################################
 
-    df_columns = [
-        "trajectory_id",
-        "trajectory_subid",
-        "trajectory",
-        "trajectory_badges",
-        "trajectory_length",
-        "trajectory_trace",
-        "trajectory_conversation",
-        "trajectory_reward",
-        "trajectory_resolved",
-    ]
-
-    df = pd.DataFrame(columns=df_columns)
-
     dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
     output_dir = "./datasets"
     os.makedirs(output_dir, exist_ok=True)
-    issues = os.listdir(dir)
+
+    # filter to only directories that have trajectory.json, this prevents some issues for folders like 'prompt_logs' or 'logs'
+    # that don't have a trajectory.json inside them
+    all_items = os.listdir(dir)
+    issues = [
+        item for item in all_items
+        if os.path.isdir(os.path.join(dir, item))
+        and os.path.exists(os.path.join(dir, item, "trajectory.json"))
+    ]
+
+    # collect all rows in a list first, then create DataFrame once. Can end up being more efficient but is
+    # primarly because of the deprecation warnings :)
+    trajectory_rows = []
 
     for folder in issues:
         print(f"\nNow parsing {folder.split('/')[-1]}\n")
@@ -430,18 +428,20 @@ if __name__ == "__main__":
         )
         output_id = folder.split("/")[-1]
         for key, val in output.items():
-            dict = {
-                "trajectory_id": [output_id],
-                "trajectory_subid": [key],
-                "trajectory": [val["trajectory"]],
-                "trajectory_badges": [val["trajectory_badges"]],
-                "trajectory_length": [val["trajectory_length"]],
-                "trajectory_trace": [val["trajectory_trace"]],
-                "trajectory_conversation": [val["trajectory_conversation"]],
-                "trajectory_reward": [val["trajectory_reward"]],
-                "trajectory_resolved": [val["trajectory_resolved"]],
+            row = {
+                "trajectory_id": output_id,
+                "trajectory_subid": key,
+                "trajectory": val["trajectory"],
+                "trajectory_badges": val["trajectory_badges"],
+                "trajectory_length": val["trajectory_length"],
+                "trajectory_trace": val["trajectory_trace"],
+                "trajectory_conversation": val["trajectory_conversation"],
+                "trajectory_reward": val["trajectory_reward"],
+                "trajectory_resolved": val["trajectory_resolved"],
             }
-            df = pd.concat([df, pd.DataFrame(dict)], ignore_index=True)
+            trajectory_rows.append(row)
+
+    df = pd.DataFrame(trajectory_rows)
 
     first_sans_two_folders = [folder.split("/")[-1] for folder in issues[:-2]]
     last_two_folders = [folder.split("/")[-1] for folder in issues[-2:]]
@@ -459,9 +459,9 @@ if __name__ == "__main__":
     ### Create preference dataset (e.g., for DPO, IPO, etc.) ###
     ############################################################
 
-    pref_df_columns = ["chosen", "rejected", "score_chosen", "score_rejected"]
-    pref_df_train = pd.DataFrame(columns=pref_df_columns)
-    pref_df_test = pd.DataFrame(columns=pref_df_columns)
+    # the same here, then we'll create the df
+    pref_train_rows = []
+    pref_test_rows = []
 
     for folder in issues[:-2]:
         df_view = (
@@ -472,15 +472,15 @@ if __name__ == "__main__":
         for i, i_row in df_view.iterrows():
             for j, j_row in df_view.iterrows():
                 if i < j and i_row["trajectory_reward"] > j_row["trajectory_reward"]:
-                    dict = {
-                        "chosen": [i_row["trajectory_conversation"]],
-                        "rejected": [j_row["trajectory_conversation"]],
-                        "score_chosen": [i_row["trajectory_reward"]],
-                        "score_rejected": [j_row["trajectory_reward"]],
+                    row = {
+                        "chosen": i_row["trajectory_conversation"],
+                        "rejected": j_row["trajectory_conversation"],
+                        "score_chosen": i_row["trajectory_reward"],
+                        "score_rejected": j_row["trajectory_reward"],
                     }
-                    pref_df_train = pd.concat(
-                        [pref_df_train, pd.DataFrame(dict)], ignore_index=True
-                    )
+                    pref_train_rows.append(row)
+
+    pref_df_train = pd.DataFrame(pref_train_rows)
     pref_df_train.to_csv(
         os.path.join(
             output_dir, f"{dir.split('/')[-1]}_trajectories_preference_train.csv"
@@ -497,15 +497,15 @@ if __name__ == "__main__":
         for i, i_row in df_view.iterrows():
             for j, j_row in df_view.iterrows():
                 if i < j and i_row["trajectory_reward"] > j_row["trajectory_reward"]:
-                    dict = {
-                        "chosen": [i_row["trajectory_conversation"]],
-                        "rejected": [j_row["trajectory_conversation"]],
-                        "score_chosen": [i_row["trajectory_reward"]],
-                        "score_rejected": [j_row["trajectory_reward"]],
+                    row = {
+                        "chosen": i_row["trajectory_conversation"],
+                        "rejected": j_row["trajectory_conversation"],
+                        "score_chosen": i_row["trajectory_reward"],
+                        "score_rejected": j_row["trajectory_reward"],
                     }
-                    pref_df_test = pd.concat(
-                        [pref_df_test, pd.DataFrame(dict)], ignore_index=True
-                    )
+                    pref_test_rows.append(row)
+
+    pref_df_test = pd.DataFrame(pref_test_rows)
     pref_df_test.to_csv(
         os.path.join(
             output_dir, f"{dir.split('/')[-1]}_trajectories_preference_test.csv"
