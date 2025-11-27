@@ -519,17 +519,6 @@ if __name__ == "__main__":
     ### EXTRACT TRAJECTORIES FROM PAST RUNS FOR SFT DATASET ###
     ###########################################################
 
-    # df_columns = [
-    #     "trajectory_id",
-    #     "trajectory_subid",
-    #     "trajectory",
-    #     "trajectory_badges",
-    #     "prompt",
-    #     "completion",
-    # ]
-
-    # df = pd.DataFrame(columns=df_columns)
-
     dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
     output_dir = "./datasets"
     os.makedirs(output_dir, exist_ok=True)
@@ -557,7 +546,6 @@ if __name__ == "__main__":
         for i, example in enumerate(output):
             example["trajectory_id"] = output_id
             example["trajectory_subid"] = i
-            example = {key: [val] for key, val in example.items()}
             trajectory_rows.append(example)
 
     df = pd.DataFrame(trajectory_rows)
