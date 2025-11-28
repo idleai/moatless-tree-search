@@ -81,35 +81,37 @@ class Action(BaseModel, ABC):
 
     @classmethod
     def get_reward_scale(cls, trajectory_length) -> List[RewardScaleEntry]:
+        multiplier_pos = 0.9**max(0,trajectory_length-2)
+        multiplier_neg = 1.1**max(0,trajectory_length-2)
         return [
             RewardScaleEntry(
-                min_value=75,
-                max_value=100,
+                min_value=int(75*multiplier_pos),
+                max_value=int(100*multiplier_pos),
                 description="The action significantly advances the solution.",
             ),
             RewardScaleEntry(
-                min_value=50,
-                max_value=74,
+                min_value=int(50*multiplier_pos),
+                max_value=int(74*multiplier_pos),
                 description="The action contributes positively towards solving the problem.",
             ),
             RewardScaleEntry(
-                min_value=25,
-                max_value=49,
+                min_value=int(25*multiplier_pos),
+                max_value=int(49*multiplier_pos),
                 description="The action is acceptable but may have some issues.",
             ),
             RewardScaleEntry(
-                min_value=0,
-                max_value=24,
+                min_value=int(0*multiplier_pos),
+                max_value=int(24*multiplier_pos),
                 description="The action has minimal impact or minor negative consequences.",
             ),
             RewardScaleEntry(
-                min_value=-49,
-                max_value=-1,
+                min_value=int(-49*multiplier_neg),
+                max_value=int(-1*multiplier_neg),
                 description="The code change is inappropriate, unhelpful, introduces new issues, or redundantly repeats previous changes without making further progress. The Git diff does not align with instructions or is unnecessary.",
             ),
             RewardScaleEntry(
-                min_value=-100,
-                max_value=-50,
+                min_value=int(-100*multiplier_neg),
+                max_value=int(-50*multiplier_neg),
                 description="The code change is counterproductive, causing significant setbacks or demonstrating persistent repetition without learning. The agent fails to recognize completed tasks and continues to attempt redundant actions.",
             ),
         ]
