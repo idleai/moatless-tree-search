@@ -99,7 +99,7 @@ USE_FEEDBACK = False
 MESSAGE_HISTORY_TYPE = MessageHistoryType.MESSAGES  # or REACT, SUMMARY
 
 
-def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str, output_dir: str) -> dict:
+def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str, output_dir: str, repo_base_dir: str, index_store_dir: str) -> dict:
     """Run MCTS on a single instance. Returns a result dict."""
     logger = logging.getLogger(f"mts.{instance_id}")
     start_time = time.time()
@@ -128,8 +128,8 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
         logger.info(f"Repository: {instance['repo']}")
 
         # Create repository and index (matches evaluation_runner.py lines 377-380)
-        repository = create_repository(instance, repo_base_dir=REPO_BASE_DIR)
-        code_index = create_index(instance, repository=repository)
+        repository = create_repository(instance, repo_base_dir=repo_base_dir)
+        code_index = create_index(instance, repository=repository, index_store_dir=index_store_dir)
 
         logger.info(f"Repository created at: {repository.repo_dir}")
 
@@ -304,6 +304,16 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     os.makedirs(run_output_dir, exist_ok=True)
     logger.info(f"Output directory: {run_output_dir}")
 
+    # Create run-specific repo base dir to avoid conflicts in parallel runs
+    repo_base_dir = f"{REPO_BASE_DIR}/run_{run_timestamp}_{model_name}"
+    os.makedirs(repo_base_dir, exist_ok=True)
+    logger.info(f"Repository base directory: {repo_base_dir}")
+
+    # Create run-specific index store dir to avoid conflicts in parallel runs
+    index_store_dir = f"{INDEX_STORE_DIR}/run_{run_timestamp}_{model_name}"
+    os.makedirs(index_store_dir, exist_ok=True)
+    logger.info(f"Index store directory: {index_store_dir}")
+
     total = len(instance_ids)
     completed = 0
     results = []
@@ -313,7 +323,7 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     with ThreadPoolExecutor(max_workers=max_parallel) as executor:
         # Submit all tasks
         future_to_instance = {
-            executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp, run_output_dir): instance_id
+            executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp, run_output_dir, repo_base_dir, index_store_dir): instance_id
             for instance_id in instance_ids
         }
 
@@ -427,12 +437,24 @@ def main():
         os.makedirs(run_output_dir, exist_ok=True)
         logger.info(f"Output directory: {run_output_dir}")
 
+        # Create run-specific repo base dir to avoid conflicts in parallel runs
+        repo_base_dir = f"{REPO_BASE_DIR}/run_{run_timestamp}_{model_name}"
+        os.makedirs(repo_base_dir, exist_ok=True)
+        logger.info(f"Repository base directory: {repo_base_dir}")
+
+        # Create run-specific index store dir to avoid conflicts in parallel runs
+        index_store_dir = f"{INDEX_STORE_DIR}/run_{run_timestamp}_{model_name}"
+        os.makedirs(index_store_dir, exist_ok=True)
+        logger.info(f"Index store directory: {index_store_dir}")
+
         result = run_single_instance(
             instance_id=instance_or_dataset,
             model_name=model_name,
             tree_search_config=tree_search_config,
             run_timestamp=run_timestamp,
-            output_dir=run_output_dir
+            output_dir=run_output_dir,
+            repo_base_dir=repo_base_dir,
+            index_store_dir=index_store_dir
         )
         logger.info(f"Result: {result}")
         logger.info(f"Duration: {result['duration_seconds']}s")

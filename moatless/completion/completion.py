@@ -67,9 +67,9 @@ class CompletionResponse(BaseModel):
 
 class CompletionModel(BaseModel):
     model: str = Field(..., description="The model to use for completion")
-    temperature: float = Field(0.0, description="The temperature to use for completion")
-    max_tokens: int = Field(
-        2000, description="The maximum number of tokens to generate"
+    temperature: Optional[float] = Field(None, description="The temperature to use for completion")
+    max_tokens: Optional[int] = Field(
+        None, description="The maximum number of tokens to generate"
     )
     timeout: float = Field(
         120.0, description="The timeout in seconds for completion requests"
@@ -129,7 +129,8 @@ class CompletionModel(BaseModel):
 
         if isinstance(response_model, list) and len(response_model) > 1:
             avalabile_actions = [
-                action for action in response_model if hasattr(action, "name")
+                action for action in response_model
+                if hasattr(action, "name") and getattr(action, "name", None) is not None
             ]
             if not avalabile_actions:
                 raise CompletionRuntimeError(f"No actions found in {response_model}")
@@ -154,12 +155,16 @@ class CompletionModel(BaseModel):
                         (
                             action
                             for action in avalabile_actions
-                            if action.name == action_type
+                            if getattr(action, "name", None) == action_type
                         ),
                         None,
                     )
                     if not action_class:
-                        action_names = [action.name for action in avalabile_actions]
+                        action_names = [
+                            getattr(action, "name", None)
+                            for action in avalabile_actions
+                            if getattr(action, "name", None) is not None
+                        ]
                         raise ValidationError(
                             f"Unknown action type: {action_type}. Available actions: {', '.join(action_names)}"
                         )
@@ -300,7 +305,7 @@ class CompletionModel(BaseModel):
                 api_base=self.api_base,
                 api_key=self.api_key,
                 max_tokens=self.max_tokens,
-                temperature=self.temperature if 'codex' not in model_name else None,
+                temperature=self.temperature,
                 messages=messages,
                 metadata=self.metadata or {},
                 timeout=self.timeout,
