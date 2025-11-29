@@ -109,6 +109,7 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
         "error": None,
         "final_node_id": None,
         "persist_path": None,
+        "model_patch": "",  # Git patch for SWE-bench harness
         "start_time": datetime.now().isoformat(),
         "end_time": None,
         "duration_seconds": None,
@@ -214,6 +215,14 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
             logger.info(f"Search completed. Final node: {node.node_id}")
             logger.info(f"Observation: {node.observation}")
 
+            # Extract git patch for SWE-bench harness
+            if node.file_context:
+                patch = node.file_context.generate_git_patch(ignore_tests=True)
+                result["model_patch"] = patch if patch else ""
+                logger.info(f"Generated patch ({len(result['model_patch'])} chars)")
+            else:
+                logger.warning("No file_context on final node")
+
             # Print some stats
             total_usage = search_tree.total_usage()
             logger.info(f"Total usage: {total_usage}")
@@ -226,6 +235,13 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
             result["final_node_id"] = node.node_id
         else:
             logger.warning("Search did not return a final node")
+            # Try to get the best trajectory from finished nodes
+            best_node = search_tree.get_best_trajectory()
+            if best_node and best_node.file_context:
+                patch = best_node.file_context.generate_git_patch(ignore_tests=True)
+                result["model_patch"] = patch if patch else ""
+                result["final_node_id"] = best_node.node_id
+                logger.info(f"Got patch from best trajectory node {best_node.node_id} ({len(result['model_patch'])} chars)")
             result["status"] = "no_result"
 
     except Exception as e:
@@ -253,6 +269,28 @@ def load_dataset(dataset_path: str) -> list:
         return data["instance_ids"]
     else:
         raise ValueError(f"Invalid dataset format. Expected list or dict with 'instance_ids' key.")
+
+
+def write_predictions_jsonl(results: list, model_name: str, output_dir: str) -> str:
+    """
+    Write predictions.jsonl file compatible with SWE-bench harness.
+
+    Format per line: {"instance_id": "...", "model_patch": "...", "model_name_or_path": "..."}
+
+    Returns the path to the predictions file.
+    """
+    predictions_path = f"{output_dir}/predictions.jsonl"
+
+    with open(predictions_path, 'w') as f:
+        for result in results:
+            prediction = {
+                "instance_id": result["instance_id"],
+                "model_patch": result.get("model_patch", ""),
+                "model_name_or_path": model_name,
+            }
+            f.write(json.dumps(prediction) + "\n")
+
+    return predictions_path
 
 
 def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int):
@@ -333,6 +371,12 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
         }, f, indent=2)
     logger.info(f"Summary saved to: {summary_path}")
 
+    # Generate predictions.jsonl for SWE-bench harness
+    predictions_path = write_predictions_jsonl(results, model_name, run_output_dir)
+    logger.info(f"SWE-bench predictions saved to: {predictions_path}")
+    run_id = f"moatless_{model_name}_{run_timestamp}"
+    logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 16 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id} \\\n  --report_dir {run_output_dir}/logs")
+
     return results
 
 
@@ -392,6 +436,12 @@ def main():
         )
         logger.info(f"Result: {result}")
         logger.info(f"Duration: {result['duration_seconds']}s")
+
+        # Generate predictions.jsonl for SWE-bench harness (even for single instance)
+        predictions_path = write_predictions_jsonl([result], model_name, run_output_dir)
+        logger.info(f"SWE-bench predictions saved to: {predictions_path}")
+        run_id = f"moatless_{model_name}_{run_timestamp}"
+        logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 4 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id} \\\n  --report_dir {run_output_dir}/logs")
 
 
 if __name__ == "__main__":
