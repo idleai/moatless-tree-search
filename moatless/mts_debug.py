@@ -1,14 +1,14 @@
 import argparse
-import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from moatless.agent.code_agent import CodingAgent
 from moatless.benchmark.swebench import create_repository, create_index
 from moatless.benchmark.utils import get_moatless_instance
-from moatless.completion.completion import CompletionModel, LLMResponseFormat
+from moatless.completion.completion import CompletionModel
 from moatless.discriminator import AgentDiscriminator
 from moatless.feedback.reward_feedback import RewardFeedbackGenerator
 from moatless.file_context import FileContext
@@ -99,20 +99,24 @@ USE_FEEDBACK = False
 MESSAGE_HISTORY_TYPE = MessageHistoryType.MESSAGES  # or REACT, SUMMARY
 
 
-def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str) -> dict:
+def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str, output_dir: str) -> dict:
     """Run MCTS on a single instance. Returns a result dict."""
     logger = logging.getLogger(f"mts.{instance_id}")
+    start_time = time.time()
     result = {
         "instance_id": instance_id,
         "status": "unknown",
         "error": None,
         "final_node_id": None,
         "persist_path": None,
+        "start_time": datetime.now().isoformat(),
+        "end_time": None,
+        "duration_seconds": None,
     }
 
     try:
-        # Generate PERSIST_PATH with datetime, model name, and instance_id
-        persist_path = f"{OUTPUT_DIR}/trajectory_{run_timestamp}_{model_name}_{instance_id}.json"
+        # Generate PERSIST_PATH with instance_id in the run's output directory
+        persist_path = f"{output_dir}/trajectory_{instance_id}.json"
         result["persist_path"] = persist_path
 
         # Load SWE-bench instance
@@ -229,6 +233,11 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
         result["status"] = "error"
         result["error"] = str(e)
 
+    # Record completion time
+    end_time = time.time()
+    result["end_time"] = datetime.now().isoformat()
+    result["duration_seconds"] = round(end_time - start_time, 2)
+
     return result
 
 
@@ -250,6 +259,12 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     """Run multiple instances in parallel using ThreadPoolExecutor."""
     logger = logging.getLogger("mts.parallel")
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_start_time = time.time()
+
+    # Create a subdirectory for this run
+    run_output_dir = f"{OUTPUT_DIR}/run_{run_timestamp}_{model_name}"
+    os.makedirs(run_output_dir, exist_ok=True)
+    logger.info(f"Output directory: {run_output_dir}")
 
     total = len(instance_ids)
     completed = 0
@@ -260,7 +275,7 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     with ThreadPoolExecutor(max_workers=max_parallel) as executor:
         # Submit all tasks
         future_to_instance = {
-            executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp): instance_id
+            executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp, run_output_dir): instance_id
             for instance_id in instance_ids
         }
 
@@ -272,19 +287,26 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
             try:
                 result = future.result()
                 results.append(result)
-                logger.info(f"[{completed}/{total}] Instance {instance_id}: {result['status']}")
+                duration = result.get("duration_seconds", "N/A")
+                logger.info(f"[{completed}/{total}] Instance {instance_id}: {result['status']} (took {duration}s)")
             except Exception as e:
                 logger.error(f"[{completed}/{total}] Instance {instance_id} raised exception: {e}")
                 results.append({
                     "instance_id": instance_id,
                     "status": "exception",
                     "error": str(e),
+                    "duration_seconds": None,
                 })
+
+    # Calculate total run time
+    run_end_time = time.time()
+    total_duration_seconds = round(run_end_time - run_start_time, 2)
 
     # Summary
     logger.info("=" * 60)
     logger.info("Run Summary:")
     logger.info(f"  Total instances: {total}")
+    logger.info(f"  Total duration: {total_duration_seconds}s ({total_duration_seconds/60:.1f} minutes)")
     status_counts = {}
     for r in results:
         status = r["status"]
@@ -293,15 +315,20 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
         logger.info(f"  {status}: {count}")
     logger.info("=" * 60)
 
-    # Save summary to file
-    summary_path = f"{OUTPUT_DIR}/run_summary_{run_timestamp}_{model_name}.json"
+    # Save summary to file (in the run's subdirectory)
+    summary_path = f"{run_output_dir}/run_summary.json"
     with open(summary_path, 'w') as f:
         json.dump({
             "run_timestamp": run_timestamp,
+            "run_start_time": datetime.fromtimestamp(run_start_time).isoformat(),
+            "run_end_time": datetime.fromtimestamp(run_end_time).isoformat(),
+            "total_duration_seconds": total_duration_seconds,
             "model_name": model_name,
             "tree_search_config": tree_search_config,
+            "max_parallel": max_parallel,
             "total_instances": total,
             "status_counts": status_counts,
+            "output_dir": run_output_dir,
             "results": results,
         }, f, indent=2)
     logger.info(f"Summary saved to: {summary_path}")
@@ -350,13 +377,21 @@ def main():
         # It's a single instance ID
         logger.info(f"Running single instance: {instance_or_dataset}")
         run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Create a subdirectory for this run
+        run_output_dir = f"{OUTPUT_DIR}/run_{run_timestamp}_{model_name}"
+        os.makedirs(run_output_dir, exist_ok=True)
+        logger.info(f"Output directory: {run_output_dir}")
+
         result = run_single_instance(
             instance_id=instance_or_dataset,
             model_name=model_name,
             tree_search_config=tree_search_config,
-            run_timestamp=run_timestamp
+            run_timestamp=run_timestamp,
+            output_dir=run_output_dir
         )
         logger.info(f"Result: {result}")
+        logger.info(f"Duration: {result['duration_seconds']}s")
 
 
 if __name__ == "__main__":
