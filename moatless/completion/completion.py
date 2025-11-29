@@ -6,7 +6,6 @@ from textwrap import dedent
 from typing import Optional, Union, List, Any
 
 import litellm
-from litellm import Router
 import tenacity
 from litellm.exceptions import (
     BadRequestError,
@@ -20,7 +19,6 @@ from moatless.completion.model import Completion, StructuredOutput
 from moatless.exceptions import CompletionRejectError, CompletionRuntimeError
 
 logger = logging.getLogger(__name__)
-
 
 class LLMResponseFormat(str, Enum):
     TOOLS = "tool_call"
@@ -77,7 +75,8 @@ class CompletionModel(BaseModel):
         120.0, description="The timeout in seconds for completion requests"
     )
     model_base_url: Optional[str] = Field(
-        default=None, description="The base URL for the model API"
+        default=None,
+        description="The base URL for the LiteLLM proxy API. Defaults to DEFAULT_LITELLM_BASE_URL if not set.",
     )
     model_api_key: Optional[str] = Field(
         default=None, description="The API key for the model", exclude=True
@@ -96,60 +95,15 @@ class CompletionModel(BaseModel):
         description="Whether to include thoughts in the action or in the message",
     )
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._router = None
+    @property
+    def api_base(self) -> str:
+        """Get the API base URL, defaulting to the LiteLLM proxy endpoint."""
+        return self.model_base_url or os.getenv("LITELLM_BASE_URL")
 
     @property
-    def router(self) -> Router:
-        """Get or create the LiteLLM router for load balancing between endpoints."""
-        
-        # ./llama-server -hf unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_XL -a "Qwen3-Coder-30B-A3B-Instruct-GGUF-Q4_K_XL" --tensor-split 1,0 --ctx-size 1048576 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8083 -np 4
-        # ./llama-server -hf unsloth/Qwen3-Coder-480B-A35B-Instruct-GGUF:Q2_K_L -a "Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L" --tensor-split 0.98,1.02 --ctx-size 131072 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8082 -np 1 --keep -1
-        if self._router is None:
-            # Check environment variable or model name to determine which model to use
-            use_480b = (
-                os.getenv("QWEN_MODEL_SIZE") == "480b" or
-                "480b" in self.model.lower()
-            )
-
-            if use_480b:
-                # 480B model configuration
-                model_list = [
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L",
-                            "api_base": "http://localhost:8082/",
-                            "api_key": "noop",
-                        }
-                    }
-                ]
-                logger.info("Initialized LiteLLM router for 480B model on localhost:8082")
-            else:
-                # 30B model configuration (default)
-                model_list = [
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
-                            "api_base": "http://localhost:8083/",
-                            "api_key": "noop",
-                        }
-                    },
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
-                            "api_base": "http://localhost:8084/",
-                            "api_key": "noop",
-                        }
-                    }
-                ]
-                logger.info("Initialized LiteLLM router for 30B model on localhost:8083, localhost:8084")
-
-            self._router = Router(model_list=model_list)
-        return self._router
+    def api_key(self) -> str:
+        """Get the API key for authentication."""
+        return self.model_api_key or os.getenv("LITELLM_API_KEY", "noop")
 
     def clone(self, **kwargs) -> "CompletionModel":
         """Create a copy of the completion model with optional parameter overrides.
@@ -335,10 +289,18 @@ class CompletionModel(BaseModel):
             ),
         )
         def _do_completion():
-            return self.router.completion(
-                model="qwen-coder",
-                max_tokens=131072,
-                temperature=self.temperature,
+            # When using a LiteLLM proxy, prefix with openai/ so litellm routes to the proxy
+            # The proxy then uses the model name to route to the correct backend
+            model_name = self.model
+            if "/" not in model_name:
+                model_name = f"openai/{model_name}"
+
+            return litellm.completion(
+                model=model_name,
+                api_base=self.api_base,
+                api_key=self.api_key,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature if 'codex' not in model_name else None,
                 messages=messages,
                 metadata=self.metadata or {},
                 timeout=self.timeout,
@@ -346,7 +308,6 @@ class CompletionModel(BaseModel):
                 tools=tools,
                 tool_choice=tool_choice,
                 response_format=response_format,
-                request_timeout=self.timeout,
             )
 
         try:
@@ -405,9 +366,9 @@ class CompletionModel(BaseModel):
     @model_validator(mode="after")
     def set_api_key(self) -> "CompletionModel":
         """
-        Update the model with the API key from en vars if model base URL is set but API key is not as we don't persist the API key.
+        Update the model with the API key from env vars if not already set.
         """
-        if self.model_base_url and not self.model_api_key:
-            self.model_api_key = os.getenv("CUSTOM_LLM_API_KEY")
+        if not self.model_api_key:
+            self.model_api_key = os.getenv("LITELLM_API_KEY") or os.getenv("CUSTOM_LLM_API_KEY")
 
         return self
