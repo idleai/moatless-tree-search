@@ -226,10 +226,14 @@ def get_node_badges(
 
 
 def parse_nodes_for_value_functions(mydict: dict):
+    """
+    Extract completions for SFT training.
 
-    if mydict["completions"].get("value_function", None) is not None:
-        trace = mydict["completions"].get("value_function", None)
-    elif mydict["completions"].get("build_action", None) is not None:
+    For bug-fixing agent training, we use 'build_action' completions only which contain
+    the agent tool selection decisions. 
+    """
+    #TODO: we should include "value_action" fields if we want to do SFT over the reward value agent
+    if mydict["completions"].get("build_action", None) is not None: 
         trace = mydict["completions"].get("build_action", None)
     else:
         trace = None
@@ -269,7 +273,6 @@ def compute_trajectory_reward(badge_list, discount=0.05):
         elif badge == ("star", "gold") and i != len(badge_list) - 1:
             cumulative_reward += 50 * (1 - discount) ** counter
         elif badge == ("star", "gold") and i == len(badge_list) - 1:
-            aa
             cumulative_reward += 100 * (1 - discount) ** counter
         else:
             print(f"WARNING: Unknown badge encountered {badge}")
@@ -316,7 +319,26 @@ def print_trajectory_trace(completion):
 
 
 def get_sft_examples_from_trajectory(trajectory_conversation):
+    """
+    Extract SFT examples from a resolved trajectory for per-action training.
 
+    Each example corresponds to one assistant action in the trajectory.
+    We save the full conversation and the index of the assistant action
+    so that the Tinker adapter can train on that specific action. 
+    The PROMPT and completion are only saved for reference (or to be used with another implementation)
+    since they are extracted directly from the conversation. 
+    This is due to how Tinker format works for SFT.
+
+    Args:
+        trajectory_conversation: Full conversation history (list of message dicts)
+
+    Returns:
+        List of dicts with fields:
+            - trajectory_conversation: Full conversation history (for Tinker)
+            - trajectory_subid: Index of this assistant action among all assistant messages (for Tinker)
+            - prompt: Flattened prompt string (for reference/debugging)
+            - completion: Action name (for reference/debugging)
+    """
     PROMPT = """
 You are an autonomous AI assistant with superior programming skills. Your task is twofold: (1) review the in-progress work of a different AI agent who is trying to create a bug fix to solve a software issue provided to it by a user, (2) suggest the next action the AI assistant should take to get closer to a solution. The other AI agent is responsible for identifying and modifying the correct file(s) in response to the problem statement. At this stage, the agent is still working on the solution.
 
@@ -432,13 +454,23 @@ Previous Actions and Observations in Chat History with AI Assistant:
 """
 
     sft_examples = []
+    assistant_action_count = 0
 
     for i, entry in enumerate(trajectory_conversation):
         if entry["role"] == "assistant":
             try:
                 tool_call = entry["tool_calls"][0]["function"]["name"]
                 context = PROMPT + str(trajectory_conversation[:i])
-                sft_examples.append({"prompt": context, "completion": tool_call})
+
+                sft_examples.append({
+                    # Tinker training required
+                    "trajectory_conversation": trajectory_conversation,
+                    "trajectory_subid": assistant_action_count,
+                    # only for reference/debugging or another different implementation
+                    "prompt": context,
+                    "completion": tool_call,
+                })
+                assistant_action_count += 1
             except:
                 pass
 
@@ -515,10 +547,6 @@ def parse_trajectory_tree(
 
 if __name__ == "__main__":
 
-    ###########################################################
-    ### EXTRACT TRAJECTORIES FROM PAST RUNS FOR SFT DATASET ###
-    ###########################################################
-
     dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
     output_dir = "./datasets"
     os.makedirs(output_dir, exist_ok=True)
@@ -543,9 +571,9 @@ if __name__ == "__main__":
             selected_tree_path=os.path.join(dir, folder, "trajectory.json")
         )
         output_id = folder.split("/")[-1]
-        for i, example in enumerate(output):
+        for example in output:
             example["trajectory_id"] = output_id
-            example["trajectory_subid"] = i
+            # trajectory_subid is already set in get_sft_examples_from_trajectory()
             trajectory_rows.append(example)
 
     df = pd.DataFrame(trajectory_rows)
@@ -566,5 +594,3 @@ if __name__ == "__main__":
     print(
         f"Length of df, df_train, df_test: {len(df)}, {len(df_train)}, {len(df_test)}"
     )
-
-    #####################################################################
