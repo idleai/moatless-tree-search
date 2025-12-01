@@ -2,6 +2,8 @@ import argparse
 import json
 import logging
 import os
+import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -98,6 +100,15 @@ def parse_args():
         help="Backoff time in seconds when encountering 429 rate limit errors (default: 600 = 10 minutes)"
     )
 
+    # Resume from checkpoint
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        metavar="RUN_DIR",
+        help="Resume from a previous run directory. Skips already-completed instances (those with trajectory.json)"
+    )
+
     return parser.parse_args()
 
 
@@ -136,6 +147,153 @@ def get_completion_config(model_name: str) -> dict:
         if model_name.startswith(prefix):
             return config
     return {}
+
+
+def detect_completed_instances(output_dir: str) -> dict:
+    """
+    Detect instances that have already been completed by checking for trajectory.json files
+    with run_status="finished" in metadata.
+
+    Returns a dict mapping instance_id -> result dict (loaded from run_summary.json if available,
+    or reconstructed from trajectory.json).
+    """
+    completed = {}
+
+    if not os.path.exists(output_dir):
+        return completed
+
+    # First, try to load results from run_summary.json if it exists
+    summary_path = os.path.join(output_dir, "run_summary.json")
+    if os.path.exists(summary_path):
+        try:
+            with open(summary_path, 'r') as f:
+                summary_data = json.load(f)
+            # Extract results indexed by instance_id
+            for result in summary_data.get("results", []):
+                instance_id = result.get("instance_id")
+                if instance_id and result.get("status") in ("completed", "no_result"):
+                    completed[instance_id] = result
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Also scan for trajectory.json files to catch any instances not in summary
+    for entry in os.listdir(output_dir):
+        instance_dir = os.path.join(output_dir, entry)
+        if not os.path.isdir(instance_dir):
+            continue
+
+        # Skip if already found in summary
+        if entry in completed:
+            continue
+
+        trajectory_file = os.path.join(instance_dir, "trajectory.json")
+        if os.path.exists(trajectory_file):
+            try:
+                with open(trajectory_file, 'r') as f:
+                    traj_data = json.load(f)
+
+                # Check for run_status="finished" in metadata
+                metadata = traj_data.get("metadata", {})
+                if metadata.get("run_status") == "finished":
+                    # This instance completed successfully
+                    completed[entry] = {
+                        "instance_id": entry,
+                        "status": "completed",
+                        "persist_path": trajectory_file,
+                        "model_patch": "",  # Would need to reconstruct from trajectory
+                        "run_completed_at": metadata.get("run_completed_at"),
+                    }
+            except (OSError, json.JSONDecodeError):
+                pass
+
+    return completed
+
+
+def load_previous_run_config(run_dir: str) -> dict:
+    """
+    Load configuration from a previous run's run_summary.json.
+
+    Returns dict with tree_search_config, model_name, dataset_path, etc.
+    Returns empty dict if not found.
+    """
+    summary_path = os.path.join(run_dir, "run_summary.json")
+    if not os.path.exists(summary_path):
+        return {}
+
+    try:
+        with open(summary_path, 'r') as f:
+            data = json.load(f)
+        return {
+            "model_name": data.get("model_name"),
+            "dataset_path": data.get("dataset_path"),
+            "tree_search_config": data.get("tree_search_config", {}),
+            "max_parallel": data.get("max_parallel", 16),
+        }
+    except (json.JSONDecodeError, KeyError):
+        return {}
+
+
+def save_checkpoint(
+    output_dir: str,
+    run_timestamp: str,
+    run_start_time: float,
+    model_name: str,
+    dataset_path: str,
+    tree_search_config: dict,
+    max_parallel: int,
+    total_instances: int,
+    results: list,
+    lock: threading.Lock,
+):
+    """
+    Atomically save a checkpoint of the current run state.
+
+    This is called after each instance completes to enable resumption.
+    Uses a temp file + rename pattern for atomic writes.
+    """
+    with lock:
+        # Calculate current stats
+        status_counts = {}
+        for r in results:
+            status = r.get("status", "unknown")
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        total_prompt_tokens = sum(r.get("prompt_tokens", 0) for r in results)
+        total_completion_tokens = sum(r.get("completion_tokens", 0) for r in results)
+        total_tokens = sum(r.get("total_tokens", 0) for r in results)
+        total_nodes = sum(r.get("total_nodes", 0) for r in results)
+
+        checkpoint_data = {
+            "run_timestamp": run_timestamp,
+            "run_start_time": datetime.fromtimestamp(run_start_time).isoformat(),
+            "last_updated": datetime.now().isoformat(),
+            "status": "in_progress",
+            "model_name": model_name,
+            "dataset_path": dataset_path,
+            "tree_search_config": tree_search_config,
+            "max_parallel": max_parallel,
+            "total_instances": total_instances,
+            "completed_count": len(results),
+            "status_counts": status_counts,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens,
+            "total_nodes": total_nodes,
+            "output_dir": output_dir,
+            "results": results,
+        }
+
+        # Write atomically using temp file + rename
+        summary_path = os.path.join(output_dir, "run_summary.json")
+        fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="checkpoint_", dir=output_dir)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(checkpoint_data, f, indent=2)
+            os.replace(temp_path, summary_path)  # Atomic on POSIX
+        except Exception:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise
 
 
 def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str, output_dir: str, repo_base_dir: str, index_store_dir: str) -> dict:
@@ -315,6 +473,12 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
                 logger.info(f"Got patch from best trajectory node {best_node.node_id} ({len(result['model_patch'])} chars)")
             result["status"] = "no_result"
 
+        # Mark the run as finished in the search tree metadata and persist
+        search_tree.metadata["run_status"] = "finished"
+        search_tree.metadata["run_completed_at"] = datetime.now(tz=timezone.utc).isoformat()
+        if persist_path:
+            search_tree.persist(persist_path)
+
     except Exception as e:
         logger.error(f"Error running instance {instance_id}: {e}", exc_info=True)
         result["status"] = "error"
@@ -446,58 +610,144 @@ def save_evaluation_json(
     return eval_path
 
 
-def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None):
-    """Run multiple instances in parallel using ThreadPoolExecutor."""
+def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None, resume_dir: str = None):
+    """Run multiple instances in parallel using ThreadPoolExecutor.
+
+    Args:
+        instance_ids: List of instance IDs to run
+        model_name: Model name to use
+        tree_search_config: Tree search configuration
+        max_parallel: Maximum parallel instances
+        dataset_path: Path to dataset file (for logging)
+        resume_dir: If provided, resume from this directory (skip completed instances)
+    """
     logger = logging.getLogger("mts.parallel")
-    run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_start_time = time.time()
 
-    # Create a subdirectory for this run
-    run_output_dir = f"{OUTPUT_DIR}/run_{run_timestamp}_{model_name}"
+    # Handle resume vs new run
+    if resume_dir:
+        # Resuming from previous run
+        run_output_dir = resume_dir
+        # Extract timestamp from directory name (format: run_YYYYMMDD_HHMMSS_modelname)
+        dir_name = os.path.basename(run_output_dir)
+        if dir_name.startswith("run_"):
+            parts = dir_name.split("_")
+            if len(parts) >= 3:
+                run_timestamp = f"{parts[1]}_{parts[2]}"
+            else:
+                run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        else:
+            run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        logger.info(f"=== RESUMING RUN from {run_output_dir} ===")
+
+        # Detect already-completed instances
+        completed_instances = detect_completed_instances(run_output_dir)
+        logger.info(f"Found {len(completed_instances)} already-completed instances")
+
+        # Filter out completed instances
+        pending_instance_ids = [iid for iid in instance_ids if iid not in completed_instances]
+        skipped_count = len(instance_ids) - len(pending_instance_ids)
+
+        if skipped_count > 0:
+            logger.info(f"Skipping {skipped_count} already-completed instances")
+            for iid in instance_ids:
+                if iid in completed_instances:
+                    logger.debug(f"  Skipping: {iid}")
+
+        # Start with results from completed instances
+        results = list(completed_instances.values())
+
+        # Use existing repo/index dirs from the previous run
+        repo_base_dir = f"{REPO_BASE_DIR}/{dir_name}"
+        index_store_dir = f"{INDEX_STORE_DIR}/{dir_name}"
+    else:
+        # New run
+        run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_output_dir = f"{OUTPUT_DIR}/run_{run_timestamp}_{model_name}"
+        pending_instance_ids = instance_ids
+        results = []
+        completed_instances = {}
+
+        # Create run-specific repo base dir to avoid conflicts in parallel runs
+        repo_base_dir = f"{REPO_BASE_DIR}/run_{run_timestamp}_{model_name}"
+        index_store_dir = f"{INDEX_STORE_DIR}/run_{run_timestamp}_{model_name}"
+
     os.makedirs(run_output_dir, exist_ok=True)
-    logger.info(f"Output directory: {run_output_dir}")
-
-    # Create run-specific repo base dir to avoid conflicts in parallel runs
-    repo_base_dir = f"{REPO_BASE_DIR}/run_{run_timestamp}_{model_name}"
     os.makedirs(repo_base_dir, exist_ok=True)
-    logger.info(f"Repository base directory: {repo_base_dir}")
-
-    # Create run-specific index store dir to avoid conflicts in parallel runs
-    index_store_dir = f"{INDEX_STORE_DIR}/run_{run_timestamp}_{model_name}"
     os.makedirs(index_store_dir, exist_ok=True)
+
+    logger.info(f"Output directory: {run_output_dir}")
+    logger.info(f"Repository base directory: {repo_base_dir}")
     logger.info(f"Index store directory: {index_store_dir}")
 
     total = len(instance_ids)
-    completed = 0
-    results = []
+    total_pending = len(pending_instance_ids)
+    completed = len(completed_instances)
 
-    logger.info(f"Starting parallel run of {total} instances with max_parallel={max_parallel}")
+    # Lock for thread-safe checkpoint saving
+    checkpoint_lock = threading.Lock()
 
-    with ThreadPoolExecutor(max_workers=max_parallel) as executor:
-        # Submit all tasks
-        future_to_instance = {
-            executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp, run_output_dir, repo_base_dir, index_store_dir): instance_id
-            for instance_id in instance_ids
-        }
+    # Save initial checkpoint immediately (so run_summary.json exists from the start)
+    save_checkpoint(
+        output_dir=run_output_dir,
+        run_timestamp=run_timestamp,
+        run_start_time=run_start_time,
+        model_name=model_name,
+        dataset_path=dataset_path,
+        tree_search_config=tree_search_config,
+        max_parallel=max_parallel,
+        total_instances=total,
+        results=results,
+        lock=checkpoint_lock,
+    )
+    logger.info(f"Initial checkpoint saved to {run_output_dir}/run_summary.json")
 
-        # Process completed futures
-        for future in as_completed(future_to_instance):
-            instance_id = future_to_instance[future]
-            completed += 1
+    if total_pending == 0:
+        logger.info("All instances already completed! Nothing to do.")
+        # Still generate final outputs
+    else:
+        logger.info(f"Starting parallel run: {total_pending} pending instances (of {total} total) with max_parallel={max_parallel}")
 
-            try:
-                result = future.result()
-                results.append(result)
-                duration = result.get("duration_seconds", "N/A")
-                logger.info(f"[{completed}/{total}] Instance {instance_id}: {result['status']} (took {duration}s)")
-            except Exception as e:
-                logger.error(f"[{completed}/{total}] Instance {instance_id} raised exception: {e}")
-                results.append({
-                    "instance_id": instance_id,
-                    "status": "exception",
-                    "error": str(e),
-                    "duration_seconds": None,
-                })
+        with ThreadPoolExecutor(max_workers=max_parallel) as executor:
+            # Submit all pending tasks
+            future_to_instance = {
+                executor.submit(run_single_instance, instance_id, model_name, tree_search_config, run_timestamp, run_output_dir, repo_base_dir, index_store_dir): instance_id
+                for instance_id in pending_instance_ids
+            }
+
+            # Process completed futures
+            for future in as_completed(future_to_instance):
+                instance_id = future_to_instance[future]
+                completed += 1
+
+                try:
+                    result = future.result()
+                    results.append(result)
+                    duration = result.get("duration_seconds", "N/A")
+                    logger.info(f"[{completed}/{total}] Instance {instance_id}: {result['status']} (took {duration}s)")
+                except Exception as e:
+                    logger.error(f"[{completed}/{total}] Instance {instance_id} raised exception: {e}")
+                    results.append({
+                        "instance_id": instance_id,
+                        "status": "exception",
+                        "error": str(e),
+                        "duration_seconds": None,
+                    })
+
+                # Save checkpoint after each instance completes
+                save_checkpoint(
+                    output_dir=run_output_dir,
+                    run_timestamp=run_timestamp,
+                    run_start_time=run_start_time,
+                    model_name=model_name,
+                    dataset_path=dataset_path,
+                    tree_search_config=tree_search_config,
+                    max_parallel=max_parallel,
+                    total_instances=total,
+                    results=results,
+                    lock=checkpoint_lock,
+                )
 
     # Calculate total run time
     run_end_time = time.time()
@@ -534,11 +784,13 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
             "run_start_time": datetime.fromtimestamp(run_start_time).isoformat(),
             "run_end_time": datetime.fromtimestamp(run_end_time).isoformat(),
             "total_duration_seconds": total_duration_seconds,
+            "status": "completed",  # Mark as completed (vs "in_progress" during checkpoints)
             "model_name": model_name,
             "dataset_path": dataset_path,
             "tree_search_config": tree_search_config,
             "max_parallel": max_parallel,
             "total_instances": total,
+            "completed_count": len(results),
             "status_counts": status_counts,
             "total_prompt_tokens": total_prompt_tokens,
             "total_completion_tokens": total_completion_tokens,
@@ -602,8 +854,50 @@ def main():
     instance_or_dataset = args.instance_or_dataset
     model_name = args.model_name
 
+    # Handle resume mode
+    if args.resume:
+        resume_dir = args.resume
+        if not os.path.isdir(resume_dir):
+            logger.error(f"Resume directory does not exist: {resume_dir}")
+            return
+
+        # Load previous run config to get dataset path
+        prev_config = load_previous_run_config(resume_dir)
+        if prev_config.get("dataset_path"):
+            dataset_path = prev_config["dataset_path"]
+            logger.info(f"Resuming run from: {resume_dir}")
+            logger.info(f"Using dataset from previous run: {dataset_path}")
+
+            # Load instance IDs from the dataset
+            instance_ids = load_dataset(dataset_path)
+            logger.info(f"Found {len(instance_ids)} instances in dataset")
+
+            # Use config from CLI args (allows overriding), but default to previous run
+            if not any([
+                args.max_iterations != 50,  # Check if user provided non-default values
+                args.max_expansions != 3,
+                args.max_cost != 5.0,
+                args.max_depth != 25,
+            ]):
+                # Use previous run's config if user didn't override
+                if prev_config.get("tree_search_config"):
+                    tree_search_config = prev_config["tree_search_config"]
+                    logger.info(f"Using tree_search_config from previous run: {tree_search_config}")
+
+            run_parallel_instances(
+                instance_ids=instance_ids,
+                model_name=model_name,
+                tree_search_config=tree_search_config,
+                max_parallel=args.max_parallel,
+                dataset_path=dataset_path,
+                resume_dir=resume_dir
+            )
+        else:
+            logger.error(f"Could not find dataset_path in previous run config at: {resume_dir}")
+            logger.error("Please specify the dataset path as the first argument when resuming.")
+            return
     # Check if input is a dataset file or a single instance ID
-    if os.path.isfile(instance_or_dataset) and instance_or_dataset.endswith('.json'):
+    elif os.path.isfile(instance_or_dataset) and instance_or_dataset.endswith('.json'):
         # It's a dataset file - run multiple instances in parallel
         logger.info(f"Loading dataset from: {instance_or_dataset}")
         instance_ids = load_dataset(instance_or_dataset)
