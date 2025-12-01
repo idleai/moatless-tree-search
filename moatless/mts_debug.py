@@ -3,12 +3,22 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from moatless.agent.code_agent import CodingAgent
+from moatless.agent.settings import AgentSettings
+from moatless.benchmark.schema import (
+    DateTimeEncoder,
+    Evaluation,
+    EvaluationInstance,
+    EvaluationStatus,
+    InstanceStatus,
+    TreeSearchSettings,
+)
 from moatless.benchmark.swebench import create_repository, create_index
 from moatless.benchmark.utils import get_moatless_instance
 from moatless.completion.completion import CompletionModel, set_rate_limit_backoff
+from moatless.completion.model import Usage
 from moatless.discriminator import AgentDiscriminator
 from moatless.feedback.reward_feedback import RewardFeedbackGenerator
 from moatless.file_context import FileContext
@@ -149,8 +159,11 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
     }
 
     try:
-        # Generate PERSIST_PATH with instance_id in the run's output directory
-        persist_path = f"{output_dir}/trajectory_{instance_id}.json"
+        # Generate PERSIST_PATH with instance_id subdirectory for moatless-streamlit compatibility
+        # Structure: {output_dir}/{instance_id}/trajectory.json
+        instance_dir = f"{output_dir}/{instance_id}"
+        os.makedirs(instance_dir, exist_ok=True)
+        persist_path = f"{instance_dir}/trajectory.json"
         result["persist_path"] = persist_path
 
         # Load SWE-bench instance
@@ -351,6 +364,88 @@ def write_predictions_jsonl(results: list, model_name: str, output_dir: str) -> 
     return predictions_path
 
 
+def save_evaluation_json(
+    results: list,
+    model_name: str,
+    tree_search_config: dict,
+    output_dir: str,
+    evaluation_name: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> str:
+    """
+    Save evaluation.json file compatible with moatless-streamlit.
+
+    Creates an Evaluation object with TreeSearchSettings and EvaluationInstance list,
+    then saves it using EvaluationFileRepository.
+
+    Returns the path to the evaluation file.
+    """
+    # Create completion model for settings
+    completion_config = get_completion_config(model_name)
+    completion_model = CompletionModel(
+        model=model_name,
+        response_format="tool_call",
+        **completion_config
+    )
+
+    # Create agent settings
+    agent_settings = AgentSettings(
+        completion_model=completion_model,
+        message_history_type=MESSAGE_HISTORY_TYPE,
+        thoughts_in_action=False,
+    )
+
+    # Create tree search settings
+    settings = TreeSearchSettings(
+        max_expansions=tree_search_config["max_expansions"],
+        max_iterations=tree_search_config["max_iterations"],
+        max_cost=tree_search_config["max_cost"],
+        max_depth=tree_search_config["max_depth"],
+        min_finished_nodes=tree_search_config["min_finished_nodes"],
+        max_finished_nodes=tree_search_config["max_finished_nodes"],
+        model=completion_model,
+        agent_settings=agent_settings,
+    )
+
+    # Create evaluation instances from results
+    instances = []
+    for result in results:
+        instance = EvaluationInstance(
+            instance_id=result["instance_id"],
+            status=InstanceStatus.COMPLETED if result["status"] == "completed" else InstanceStatus.ERROR,
+            started_at=datetime.fromisoformat(result["start_time"]) if result.get("start_time") else None,
+            completed_at=datetime.fromisoformat(result["end_time"]) if result.get("end_time") else None,
+            submission=result.get("model_patch", ""),
+            error=result.get("error"),
+            iterations=result.get("total_nodes"),
+            usage=Usage(
+                prompt_tokens=result.get("prompt_tokens", 0),
+                completion_tokens=result.get("completion_tokens", 0),
+            ) if result.get("prompt_tokens") or result.get("completion_tokens") else None,
+            duration=result.get("duration_seconds"),
+        )
+        instances.append(instance)
+
+    # Create evaluation
+    evaluation = Evaluation(
+        evaluations_dir=output_dir,
+        evaluation_name=evaluation_name,
+        settings=settings,
+        start_time=start_time,
+        finish_time=end_time,
+        status=EvaluationStatus.COMPLETED,
+        instances=instances,
+    )
+
+    # Save directly to output_dir/evaluation.json (not using repository which adds subdirectory)
+    eval_path = os.path.join(output_dir, "evaluation.json")
+    with open(eval_path, "w") as f:
+        json.dump(evaluation.model_dump(), f, cls=DateTimeEncoder, indent=2)
+
+    return eval_path
+
+
 def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None):
     """Run multiple instances in parallel using ThreadPoolExecutor."""
     logger = logging.getLogger("mts.parallel")
@@ -457,6 +552,20 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     # Generate predictions.jsonl for SWE-bench harness
     predictions_path = write_predictions_jsonl(results, model_name, run_output_dir)
     logger.info(f"SWE-bench predictions saved to: {predictions_path}")
+
+    # Generate evaluation.json for moatless-streamlit
+    evaluation_name = f"run_{run_timestamp}_{model_name}"
+    eval_path = save_evaluation_json(
+        results=results,
+        model_name=model_name,
+        tree_search_config=tree_search_config,
+        output_dir=run_output_dir,
+        evaluation_name=evaluation_name,
+        start_time=datetime.fromtimestamp(run_start_time, tz=timezone.utc),
+        end_time=datetime.fromtimestamp(run_end_time, tz=timezone.utc),
+    )
+    logger.info(f"Moatless evaluation saved to: {eval_path}")
+
     run_id = f"moatless_{model_name}_{run_timestamp}"
     logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 16 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id} \\\n  --report_dir {run_output_dir}/logs")
 
@@ -542,6 +651,22 @@ def main():
         # Generate predictions.jsonl for SWE-bench harness (even for single instance)
         predictions_path = write_predictions_jsonl([result], model_name, run_output_dir)
         logger.info(f"SWE-bench predictions saved to: {predictions_path}")
+
+        # Generate evaluation.json for moatless-streamlit
+        evaluation_name = f"run_{run_timestamp}_{model_name}"
+        start_time = datetime.fromisoformat(result["start_time"]) if result.get("start_time") else datetime.now(tz=timezone.utc)
+        end_time = datetime.fromisoformat(result["end_time"]) if result.get("end_time") else datetime.now(tz=timezone.utc)
+        eval_path = save_evaluation_json(
+            results=[result],
+            model_name=model_name,
+            tree_search_config=tree_search_config,
+            output_dir=run_output_dir,
+            evaluation_name=evaluation_name,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        logger.info(f"Moatless evaluation saved to: {eval_path}")
+
         run_id = f"moatless_{model_name}_{run_timestamp}"
         logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 4 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id} \\\n  --report_dir {run_output_dir}/logs")
 
