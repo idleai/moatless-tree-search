@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from enum import Enum
 from textwrap import dedent
 from typing import Optional, Union, List, Any
@@ -12,6 +13,7 @@ from litellm.exceptions import (
     NotFoundError,
     AuthenticationError,
     APIError,
+    RateLimitError,
 )
 from pydantic import BaseModel, Field, model_validator, ValidationError
 
@@ -19,6 +21,16 @@ from moatless.completion.model import Completion, StructuredOutput
 from moatless.exceptions import CompletionRejectError, CompletionRuntimeError
 
 logger = logging.getLogger(__name__)
+
+# Rate limit backoff duration in seconds (10 minutes default, can be overridden)
+RATE_LIMIT_BACKOFF_SECONDS = 600
+
+
+def set_rate_limit_backoff(seconds: int) -> None:
+    """Set the rate limit backoff duration in seconds."""
+    global RATE_LIMIT_BACKOFF_SECONDS
+    RATE_LIMIT_BACKOFF_SECONDS = seconds
+    logger.info(f"Rate limit backoff set to {seconds} seconds ({seconds / 60:.1f} minutes)")
 
 class LLMResponseFormat(str, Enum):
     TOOLS = "tool_call"
@@ -220,6 +232,19 @@ class CompletionModel(BaseModel):
                 if not assistant_message:
                     raise CompletionRuntimeError("Empty response from model")
 
+                # Check if the response is an error structure from the LLM provider
+                try:
+                    parsed = json.loads(assistant_message) if isinstance(assistant_message, str) else assistant_message
+                    if isinstance(parsed, dict) and "error" in parsed:
+                        error_info = parsed["error"]
+                        error_type = error_info.get("type", "unknown") if isinstance(error_info, dict) else str(error_info)
+                        error_msg = error_info.get("message", str(error_info)) if isinstance(error_info, dict) else str(error_info)
+                        raise CompletionRuntimeError(
+                            f"LLM returned an error response: type={error_type}, message={error_msg}"
+                        )
+                except json.JSONDecodeError:
+                    pass  # Not valid JSON, will be handled by validation below
+
                 messages.append({"role": "assistant", "content": assistant_message})
 
                 response = response_model.model_validate_json(assistant_message)
@@ -237,13 +262,38 @@ class CompletionModel(BaseModel):
                 return CompletionResponse.create(output=response, completion=completion)
 
             except (ValidationError, json.JSONDecodeError) as e:
+                # Build a more helpful error message for missing fields
+                error_str = str(e)
+                if "Field required" in error_str:
+                    # Extract the schema fields if possible
+                    try:
+                        schema = response_model.model_json_schema()
+                        required_fields = schema.get("required", [])
+                        properties = schema.get("properties", {})
+                        field_descriptions = []
+                        for field in required_fields:
+                            field_info = properties.get(field, {})
+                            field_type = field_info.get("type", "unknown")
+                            field_descriptions.append(f"  - {field}: {field_type}")
+                        fields_info = "\n".join(field_descriptions)
+                        error_message = (
+                            f"Your response is missing required fields. The JSON must have ALL of these fields:\n"
+                            f"{fields_info}\n\n"
+                            f"Your response was missing: {error_str}\n\n"
+                            f"Please provide a valid JSON with ALL required fields as SEPARATE keys."
+                        )
+                    except Exception:
+                        error_message = f"The response was invalid. Fix the errors, exceptions found\n{e}"
+                else:
+                    error_message = f"The response was invalid. Fix the errors, exceptions found\n{e}"
+
                 logger.warning(
                     f"Completion attempt failed with error: {e}. Will retry."
                 )
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"The response was invalid. Fix the errors, exceptions found\n{e}",
+                        "content": error_message,
                     }
                 )
                 raise CompletionRejectError(
@@ -284,13 +334,35 @@ class CompletionModel(BaseModel):
         """
         litellm.drop_params = True
 
+        def _should_retry_rate_limit(exception: BaseException) -> bool:
+            """Check if we should retry on rate limit with long backoff."""
+            if isinstance(exception, RateLimitError):
+                return True
+            # Also check for 429 status code in APIError
+            if isinstance(exception, APIError) and hasattr(exception, 'status_code'):
+                return exception.status_code == 429
+            return False
+
+        def _handle_rate_limit_wait(retry_state: tenacity.RetryCallState) -> None:
+            """Log and wait for rate limit backoff."""
+            exception = retry_state.outcome.exception()
+            logger.warning(
+                f"Rate limit (429) encountered. Waiting {RATE_LIMIT_BACKOFF_SECONDS} seconds (10 minutes) before retry. "
+                f"Error: {exception}"
+            )
+            time.sleep(RATE_LIMIT_BACKOFF_SECONDS)
+
         @tenacity.retry(
-            stop=tenacity.stop_after_attempt(2),
-            wait=tenacity.wait_exponential(multiplier=3),
+            stop=tenacity.stop_after_attempt(5),  # More attempts for rate limits
+            wait=tenacity.wait_exponential(multiplier=3, max=60),
             retry=tenacity.retry_if_exception_type(Exception),
             reraise=True,
-            before_sleep=lambda retry_state: logger.warning(
-                f"Retrying litellm completion after error: {retry_state.outcome.exception()}"
+            before_sleep=lambda retry_state: (
+                _handle_rate_limit_wait(retry_state)
+                if _should_retry_rate_limit(retry_state.outcome.exception())
+                else logger.warning(
+                    f"Retrying litellm completion after error: {retry_state.outcome.exception()}"
+                )
             ),
         )
         def _do_completion():

@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import List
 
@@ -15,6 +16,21 @@ from moatless.completion.model import Completion, StructuredOutput, Usage
 from moatless.exceptions import CompletionRejectError, CompletionRuntimeError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_truncated_json_error(error: Exception) -> bool:
+    """Check if the error indicates a truncated JSON response."""
+    error_str = str(error).lower()
+    truncation_indicators = [
+        "eof while parsing",
+        "unterminated string",
+        "unexpected end of json",
+        "expecting value",
+        "expecting property name",
+        "expecting ':'",
+        "expecting ','",
+    ]
+    return any(indicator in error_str for indicator in truncation_indicators)
 
 
 class ToolCallCompletionModel(CompletionModel):
@@ -77,7 +93,7 @@ class ToolCallCompletionModel(CompletionModel):
                 def get_response_model(tool_name: str):
                     if isinstance(response_model, list):
                         for r in response_model:
-                            if r.name == tool_name:
+                            if getattr(r, "name", None) == tool_name:
                                 return r
                     else:
                         return response_model
@@ -109,13 +125,27 @@ class ToolCallCompletionModel(CompletionModel):
                             continue
 
                         seen_arguments.add(tool_call.function.arguments)
+
+                        # Check if the arguments contain an error response from the LLM provider
+                        try:
+                            parsed_args = json.loads(tool_call.function.arguments)
+                            if isinstance(parsed_args, dict) and "error" in parsed_args:
+                                error_info = parsed_args["error"]
+                                error_type = error_info.get("type", "unknown") if isinstance(error_info, dict) else str(error_info)
+                                error_msg = error_info.get("message", str(error_info)) if isinstance(error_info, dict) else str(error_info)
+                                raise CompletionRuntimeError(
+                                    f"LLM returned an error response in tool call: type={error_type}, message={error_msg}"
+                                )
+                        except json.JSONDecodeError:
+                            pass  # Will be handled by model_validate_json below
+
                         response_object = action.model_validate_json(
                             tool_call.function.arguments
                         )
                         response_objects.append(response_object)
 
                     if invalid_function_names:
-                        available_actions = [r.name for r in response_model]
+                        available_actions = [getattr(r, "name", None) for r in response_model if getattr(r, "name", None) is not None]
                         raise ValueError(
                             f"Unknown functions {invalid_function_names}. Available functions: {available_actions}"
                         )
@@ -136,14 +166,42 @@ class ToolCallCompletionModel(CompletionModel):
                     text=content, output=response_objects, completion=completion
                 )
 
-            except (ValidationError, ValueError) as e:
-                logger.warning(
-                    f"Completion attempt failed with error: {e}. Will retry."
-                )
+            except (ValidationError, ValueError, json.JSONDecodeError) as e:
+                retry_count += 1
+                error_str = str(e)
+
+                # Detect truncated JSON responses
+                if _is_truncated_json_error(e):
+                    logger.warning(
+                        f"Completion attempt {retry_count} failed due to truncated JSON response: {e}. "
+                        f"This typically means the response exceeded max_tokens. Will retry."
+                    )
+                    error_message = (
+                        "Your previous response was truncated and resulted in invalid JSON. "
+                        "The response was cut off before completion, likely due to length limits. "
+                        "Please provide a shorter, more concise response that fits within the token limit. "
+                        "Focus on the essential information only."
+                    )
+                elif "Field required" in error_str:
+                    # Missing required fields - provide more helpful guidance
+                    logger.warning(
+                        f"Completion attempt {retry_count} failed due to missing required fields: {e}. Will retry."
+                    )
+                    error_message = (
+                        f"Your response is missing required fields. "
+                        f"Make sure your tool call includes ALL required parameters as separate fields in the JSON. "
+                        f"Error details: {e}"
+                    )
+                else:
+                    logger.warning(
+                        f"Completion attempt {retry_count} failed with error: {e}. Will retry."
+                    )
+                    error_message = f"The response was invalid. Fix the errors, exceptions found\n{e}"
+
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"The response was invalid. Fix the errors, exceptions found\n{e}",
+                        "content": error_message,
                     }
                 )
                 raise CompletionRejectError(

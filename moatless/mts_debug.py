@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from moatless.agent.code_agent import CodingAgent
 from moatless.benchmark.swebench import create_repository, create_index
 from moatless.benchmark.utils import get_moatless_instance
-from moatless.completion.completion import CompletionModel
+from moatless.completion.completion import CompletionModel, set_rate_limit_backoff
 from moatless.discriminator import AgentDiscriminator
 from moatless.feedback.reward_feedback import RewardFeedbackGenerator
 from moatless.file_context import FileContext
@@ -81,6 +81,12 @@ def parse_args():
         default=3,
         help="For MCTS: stop after N finished nodes"
     )
+    parser.add_argument(
+        "--rate-limit-backoff",
+        type=int,
+        default=600,
+        help="Backoff time in seconds when encountering 429 rate limit errors (default: 600 = 10 minutes)"
+    )
 
     return parser.parse_args()
 
@@ -98,6 +104,29 @@ USE_FEEDBACK = False
 # Message history type - matches eval configs
 MESSAGE_HISTORY_TYPE = MessageHistoryType.MESSAGES  # or REACT, SUMMARY
 
+# Base completion configs for different models
+# Keys are model name prefixes - first matching prefix will be used
+MODEL_COMPLETION_CONFIGS = {
+    "gh-gpt4o": {
+        # Default settings for gh-gpt4o
+    },
+    "qwen3-coder-30b-a3b-instruct": {
+        "max_tokens": 32768,
+        "timeout": 300.0,
+    },
+}
+
+
+def get_completion_config(model_name: str) -> dict:
+    """Get completion config for a model by matching against MODEL_COMPLETION_CONFIGS keys.
+
+    Returns the config dict for the first matching prefix, or empty dict if no match.
+    """
+    for prefix, config in MODEL_COMPLETION_CONFIGS.items():
+        if model_name.startswith(prefix):
+            return config
+    return {}
+
 
 def run_single_instance(instance_id: str, model_name: str, tree_search_config: dict, run_timestamp: str, output_dir: str, repo_base_dir: str, index_store_dir: str) -> dict:
     """Run MCTS on a single instance. Returns a result dict."""
@@ -113,6 +142,10 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
         "start_time": datetime.now().isoformat(),
         "end_time": None,
         "duration_seconds": None,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "total_nodes": 0,
     }
 
     try:
@@ -134,12 +167,17 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
         logger.info(f"Repository created at: {repository.repo_dir}")
 
         # Create completion model (matches run_evaluation.py lines 431-442)
+        # Get model-specific config overrides
+        completion_config = get_completion_config(model_name)
         completion_model = CompletionModel(
             model=model_name,
-            response_format="tool_call"
+            response_format="tool_call",
+            **completion_config
         )
 
         logger.info(f"Model: {completion_model.model}, Response format: {completion_model.response_format}")
+        if completion_config:
+            logger.info(f"Model config overrides: {completion_config}")
         selector = None
         value_function = None
         discriminator = None
@@ -226,15 +264,35 @@ def run_single_instance(instance_id: str, model_name: str, tree_search_config: d
             # Print some stats
             total_usage = search_tree.total_usage()
             logger.info(f"Total usage: {total_usage}")
+            result["prompt_tokens"] = total_usage.prompt_tokens
+            result["completion_tokens"] = total_usage.completion_tokens
+            result["total_tokens"] = total_usage.prompt_tokens + total_usage.completion_tokens
 
-            # Show the tree structure
+            # Show the tree structure and count nodes
             from moatless.node import generate_ascii_tree
             logger.info(f"\nTree structure:\n{generate_ascii_tree(search_tree.root)}")
+
+            # Count total nodes in the tree
+            node_count = len(search_tree.root.get_all_nodes())
+            result["total_nodes"] = node_count
+            logger.info(f"Total nodes in tree: {node_count}")
 
             result["status"] = "completed"
             result["final_node_id"] = node.node_id
         else:
             logger.warning("Search did not return a final node")
+            # Still capture usage even without a result
+            total_usage = search_tree.total_usage()
+            logger.info(f"Total usage: {total_usage}")
+            result["prompt_tokens"] = total_usage.prompt_tokens
+            result["completion_tokens"] = total_usage.completion_tokens
+            result["total_tokens"] = total_usage.prompt_tokens + total_usage.completion_tokens
+
+            # Count total nodes in the tree
+            node_count = len(search_tree.root.get_all_nodes())
+            result["total_nodes"] = node_count
+            logger.info(f"Total nodes in tree: {node_count}")
+
             # Try to get the best trajectory from finished nodes
             best_node = search_tree.get_best_trajectory()
             if best_node and best_node.file_context:
@@ -293,7 +351,7 @@ def write_predictions_jsonl(results: list, model_name: str, output_dir: str) -> 
     return predictions_path
 
 
-def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int):
+def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None):
     """Run multiple instances in parallel using ThreadPoolExecutor."""
     logger = logging.getLogger("mts.parallel")
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -361,6 +419,16 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
         status_counts[status] = status_counts.get(status, 0) + 1
     for status, count in sorted(status_counts.items()):
         logger.info(f"  {status}: {count}")
+
+    # Aggregate token usage
+    total_prompt_tokens = sum(r.get("prompt_tokens", 0) for r in results)
+    total_completion_tokens = sum(r.get("completion_tokens", 0) for r in results)
+    total_tokens = sum(r.get("total_tokens", 0) for r in results)
+    total_nodes = sum(r.get("total_nodes", 0) for r in results)
+    logger.info(f"  Total prompt tokens: {total_prompt_tokens:,}")
+    logger.info(f"  Total completion tokens: {total_completion_tokens:,}")
+    logger.info(f"  Total tokens: {total_tokens:,}")
+    logger.info(f"  Total nodes across all instances: {total_nodes:,}")
     logger.info("=" * 60)
 
     # Save summary to file (in the run's subdirectory)
@@ -372,10 +440,15 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
             "run_end_time": datetime.fromtimestamp(run_end_time).isoformat(),
             "total_duration_seconds": total_duration_seconds,
             "model_name": model_name,
+            "dataset_path": dataset_path,
             "tree_search_config": tree_search_config,
             "max_parallel": max_parallel,
             "total_instances": total,
             "status_counts": status_counts,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens,
+            "total_nodes": total_nodes,
             "output_dir": run_output_dir,
             "results": results,
         }, f, indent=2)
@@ -401,6 +474,12 @@ def main():
     # Parse command-line arguments
     args = parse_args()
 
+    # Set rate limit backoff if specified
+    if args.rate_limit_backoff != 600:  # Only log if non-default
+        set_rate_limit_backoff(args.rate_limit_backoff)
+    else:
+        set_rate_limit_backoff(args.rate_limit_backoff)
+
     # Tree search settings from command-line arguments
     tree_search_config = {
         "max_iterations": args.max_iterations,
@@ -425,7 +504,8 @@ def main():
             instance_ids=instance_ids,
             model_name=model_name,
             tree_search_config=tree_search_config,
-            max_parallel=args.max_parallel
+            max_parallel=args.max_parallel,
+            dataset_path=instance_or_dataset
         )
     else:
         # It's a single instance ID
