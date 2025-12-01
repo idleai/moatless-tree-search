@@ -115,7 +115,7 @@ def parse_args():
 # Environment paths
 INDEX_STORE_DIR = "/home/idlecs229/repos/moatless-tree-search/parts"
 REPO_BASE_DIR = "/home/idlecs229/repos/moatless-tree-search/downloads"
-OUTPUT_DIR = "/home/idlecs229/repos/moatless-tree-search/cover"
+OUTPUT_DIR = "/home/idlecs229/repos/moatless-tree-search/logs/mts_debug"
 
 # MCTS components - enable for full MCTS behavior
 USE_VALUE_FUNCTION = True
@@ -819,7 +819,7 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
     logger.info(f"Moatless evaluation saved to: {eval_path}")
 
     run_id = f"moatless_{model_name}_{run_timestamp}"
-    logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 16 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id} \\\n  --report_dir {run_output_dir}/logs")
+    logger.info(f"To run SWE-bench harness:\npython -m swebench.harness.run_evaluation \\\n  --dataset_name princeton-nlp/SWE-bench_Lite \\\n  --predictions_path {predictions_path} \\\n  --max_workers 16 \\\n  --timeout 900 \\\n  --cache_level env \\\n  --clean True \\\n  --run_id {run_id}")
 
     return results
 
