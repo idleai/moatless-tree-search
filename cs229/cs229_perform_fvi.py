@@ -99,7 +99,7 @@ def get_q_value(state_initial, gamma, state_final, theta):
     return get_reward(state_initial) + gamma * get_value(state_final, theta)
 
 
-def update_value_function(theta, x, y, eps=1e-5, step_size=1e-5):
+def update_value_function(theta, x, y, eps=1e-5, step_size=1e-10):
     """
     This update rule currently assumes we are solving a linear regression problem.
     """
@@ -197,12 +197,12 @@ def main(plot=True):
         # check for convergence
         max_abs_change = np.max(np.abs(theta - theta_old))
         error.append(max_abs_change)
-        if max_abs_change <= tolerance:
+        if max_abs_change <= TOLERANCE:
             converged_in_one_iteration = True
         else:
             converged_in_one_iteration = False
 
-        print(f"Concluded iteration {len(error)}. Error: {error}.")
+        print(f"Concluded iteration {len(error)}. Error: {max_abs_change}.")
         # update progress towards training completion if convergence occurs
         if converged_in_one_iteration:
             consecutive_no_learning_trials = consecutive_no_learning_trials + 1
