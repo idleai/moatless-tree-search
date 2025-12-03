@@ -18,6 +18,7 @@ REACT_GUIDELINES = """# Action and ReAct Guidelines
    - Run ONLY ONE action at a time
    - Choose from the available functions
    - Never try to execute multiple actions at once
+   - WHEN USING A TOOL, YOUR OUTPUT MUST BEGIN WITH THE <tool_call> TAG. The format MUST be: <tool_call>{\"name\": \"tool_name\", \"arguments\": \"{...}\"}</tool_call>"
 
 4. **Wait and Observe**
    - After executing an action, STOP
