@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from litellm.types.llms.openai import ChatCompletionUserMessage
 from pydantic import BaseModel, Field
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 from moatless.actions.action import Action, RewardScaleEntry
 from moatless.completion.completion import CompletionModel
@@ -11,6 +13,7 @@ from moatless.completion.model import Completion
 from moatless.message_history import MessageHistoryGenerator
 from moatless.node import Node, generate_ascii_tree
 from moatless.value_function.model import Reward
+from moatless.value_function.value_function_weights import theta
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,66 @@ class ValueFunction(BaseModel):
     )
 
     def get_reward(self, node: Node) -> Tuple[Reward, Optional[Completion]]:
+
+        def get_action_id(action_steps: list):
+
+            if len(action_steps) == 1:
+                action = action_steps[0]["action"]["action_args_class"].split(".")[2]
+            elif len(action_steps) > 1:
+                action = ""
+            elif len(action_steps) == 0:
+                action = ""
+
+            ACTION_TO_ID = {
+                "semantic_search": 1,
+                "view_code": 2,
+                "find_class": 3,
+                "find_code_snippet": 4,
+                "create_file": 5,
+                "find_function": 6,
+                "run_tests": 7,
+                "verified_finish": 8,
+                "string_replace": 9,
+            }
+            if action not in ACTION_TO_ID.keys():
+                print(f"Found unknown/none action: {action}")
+            return ACTION_TO_ID.get(action, 0)
+
+        def get_latest_test_results(node: Node):
+            found_results = False
+            has_parent = True
+            while not found_results and has_parent:
+                if node.file_context:
+                    passed_count, failure_count, error_count = (
+                        node.file_context.get_test_counts()
+                    )
+                else:
+                    passed_count, failure_count, error_count = (0, 0, 0)
+
+                if passed_count + failure_count + error_count == 0 and node.parent:
+                    node = node.parent
+                elif (
+                    passed_count + failure_count + error_count == 0 and not node.parent
+                ):
+                    pass_rate = 0.5
+                    error_rate = 0
+                    has_parent = False
+                else:
+                    pass_rate = passed_count / (
+                        passed_count + failure_count + error_count
+                    )
+                    error_rate = error_count / (
+                        passed_count + failure_count + error_count
+                    )
+                    found_results = True
+
+            return pass_rate, error_rate
+
+        def get_prompt(node: Node):
+            while node.parent:
+                node = node.parent
+            return node.user_message
+
         # First get coding value function result if enabled
         coding_reward = None
         if self.coding_value_function:
@@ -134,6 +197,42 @@ class ValueFunction(BaseModel):
                 messages=messages, system_prompt=system_prompt, response_model=Reward
             )
 
+            # NOTE CS229: override quantitative reward with output of trained value function
+
+            # get sentence embedding model
+            sentence_embedding_model = SentenceTransformer(
+                "sentence-transformers/all-MiniLM-L12-v2"
+            )
+
+            # get value function weights - direct import at top of file
+            # compile state vector
+            STATE_DIM = 774
+            state = np.zeros((STATE_DIM,))
+            if not node.parent:
+                state[0] = node.get_depth()
+                state[1] = 0
+                state[2] = 0
+                state[3] = 0
+                state[4] = int(completion_response.structured_output.value)
+                state[5] = 0
+                state[6 : 6 + 384] = sentence_embedding_model(get_prompt(node))
+                state[6 + 384 : 6 + 384 * 2] = np.zeros((384,))
+            else:
+                state[0] = node.get_depth()
+                state[1] = get_action_id(node.action_steps)
+                pass_rate, error_rate = get_latest_test_results(node)
+                state[2] = pass_rate
+                state[3] = error_rate
+                state[4] = int(completion_response.structured_output.value)
+                state[5] = 0
+                state[6 : 6 + 384] = sentence_embedding_model(get_prompt(node))
+                state[6 + 384 : 6 + 384 * 2] = sentence_embedding_model(
+                    node.assistant_message
+                )
+
+            reward = int(np.dot(theta, state))
+            completion_response.structured_output.value = reward
+
             return completion_response.structured_output, completion_response.completion
 
         except Exception as e:
@@ -159,7 +258,9 @@ Evaluation Guidelines:
 2. Either reinforce its reasoning or explain why you disagree
 3. Provide your own comprehensive evaluation
 </coding_assessment>
-""".format(coding_reward=coding_reward)
+""".format(
+                coding_reward=coding_reward
+            )
 
         if self.include_search_tree:
             base_prompt += """
