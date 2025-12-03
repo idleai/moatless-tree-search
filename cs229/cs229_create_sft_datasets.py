@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 import os
@@ -225,24 +226,37 @@ def get_node_badges(
     return badge_list
 
 
-def parse_nodes_for_value_functions(mydict: dict):
+def parse_nodes_for_value_functions(mydict: dict, training_objective: str = "bug_fixing"):
     """
-    Extract completions for SFT training.
+    Extract completions for SFT training based on the training objective.
 
-    For bug-fixing agent training, we use 'build_action' completions only which contain
-    the agent tool selection decisions. 
+    Args:
+        mydict: Node dictionary from trajectory.json
+        training_objective: Either "bug_fixing" or "value_function"
+            - "bug_fixing": Extract build_action completions (tool selection)
+            - "value_function": Extract value_function completions (reward model evaluations)
+
+    Returns:
+        List of tuples: (node_name, completion_data)
     """
-    #TODO: we should include "value_action" fields if we want to do SFT over the reward value agent
-    if mydict["completions"].get("build_action", None) is not None: 
-        trace = mydict["completions"].get("build_action", None)
+    if training_objective == "bug_fixing":
+        if mydict["completions"].get("build_action", None) is not None:
+            trace = mydict["completions"].get("build_action", None)
+        else:
+            trace = None
+    elif training_objective == "value_function":
+        if mydict["completions"].get("value_function", None) is not None:
+            trace = mydict["completions"].get("value_function", None)
+        else:
+            trace = None
     else:
-        trace = None
+        raise ValueError(f"Invalid training_objective: {training_objective}. Must be 'bug_fixing' or 'value_function'")
 
     node_value_function_list = [("Node" + str(mydict["node_id"]), trace)]
 
-    # append to node_dict of mydict{'node_id':node_id,'response_id':response_id}
+    # do the same for each children
     for child in mydict["children"]:
-        node_value_function_list += parse_nodes_for_value_functions(child)
+        node_value_function_list += parse_nodes_for_value_functions(child, training_objective)
     return node_value_function_list
 
 
@@ -318,7 +332,52 @@ def print_trajectory_trace(completion):
     return printout
 
 
-def get_sft_examples_from_trajectory(trajectory_conversation):
+def get_value_function_sft_example(value_function_completion):
+    """
+    Extract SFT example for value function (reward model) training.
+    This is completely different for bug-fixing agent training.
+
+    The value_function completion structure:
+    - input: List of messages including the response as the last message (duplicate)
+    - response: The actual LLM response with evaluation
+
+    For Tinker training format:
+    - trajectory_conversation: input[:-1] + [response as assistant message]
+    - trajectory_subid: Index of the assistant message we want to train on
+
+    Args:
+        value_function_completion: Dict with 'input' and 'response' keys
+
+    Returns:
+        List with single dict containing SFT training example
+    """
+    if not value_function_completion:
+        return []
+
+    # we inlclude all input messages except the last one which duplicates the response
+    prompt_messages = value_function_completion['input'][:-1]
+
+    response_content = value_function_completion['response']['choices'][0]['message']['content']
+
+    full_conversation = prompt_messages + [
+        {'role': 'assistant', 'content': response_content}
+    ]
+
+
+    assistant_count = sum(1 for msg in full_conversation if msg.get('role') == 'assistant')
+    trajectory_subid = assistant_count - 1
+
+    return [{
+        # Tinker training required
+        'trajectory_conversation': full_conversation,
+        'trajectory_subid': trajectory_subid,
+        # for reference/debugging
+        'prompt': str(prompt_messages),
+        'completion': response_content,
+    }]
+
+
+def get_bug_fixing_sft_examples(trajectory_conversation):
     """
     Extract SFT examples from a resolved trajectory for per-action training.
 
@@ -477,8 +536,28 @@ Previous Actions and Observations in Chat History with AI Assistant:
     return sft_examples
 
 
+def get_sft_examples_from_trajectory(trajectory_data, training_objective="bug_fixing"):
+    """
+    Extract SFT examples from trajectory data based on training objective.
+
+    Args:
+        trajectory_data: Either a conversation list (bug_fixing) or completion dict (value_function)
+        training_objective: "bug_fixing" or "value_function"
+
+    Returns:
+        List of SFT training examples in Tinker format
+    """
+    if training_objective == "value_function":
+        return get_value_function_sft_example(trajectory_data)
+    elif training_objective == "bug_fixing":
+        return get_bug_fixing_sft_examples(trajectory_data)
+    else:
+        raise ValueError(f"Invalid training_objective: {training_objective}")
+
+
 def parse_trajectory_tree(
     selected_tree_path: str,
+    training_objective: str = "bug_fixing",
 ):
 
     # initialize output
@@ -505,7 +584,7 @@ def parse_trajectory_tree(
     with open(selected_tree_path, "r") as f:
         traj = json.load(f)
 
-    node_value_function_list = parse_nodes_for_value_functions(traj["root"])
+    node_value_function_list = parse_nodes_for_value_functions(traj["root"], training_objective)
     node_list = [item[0] for item in node_value_function_list]
     value_function_map = {item[0]: item[1] for item in node_value_function_list}
 
@@ -533,23 +612,53 @@ def parse_trajectory_tree(
         if badge_list[-1] == ("star", "gold"):
 
             print(f"    Processing {term_node}'s RESOLVED trajectory.\n")
-            trajectory_conversation = value_function_map[term_node]["input"]
-            examples = get_sft_examples_from_trajectory(trajectory_conversation)
 
-            for example in examples:
-                example["trajectory"] = str(shortest_path)
-                example["trajectory_badges"] = str(badge_list)
-                # Save to output
-                output.append(example)
+            if training_objective == "bug_fixing":
+                # for bug-fixing we extract from terminal node full conversation
+                # this contains all assistant actions with tool calls in the trajectory
+                trajectory_data = value_function_map[term_node]["input"]
+                examples = get_sft_examples_from_trajectory(trajectory_data, training_objective)
+
+                for example in examples:
+                    example["trajectory"] = str(shortest_path)
+                    example["trajectory_badges"] = str(badge_list)
+                    output.append(example)
+
+            elif training_objective == "value_function":
+                # for value_function we extract from ALL nodes in the resolved path
+                # so each node has one evaluation to learn from
+                for node_name in shortest_path:
+                    if value_function_map.get(node_name):
+                        trajectory_data = value_function_map[node_name]
+                        examples = get_sft_examples_from_trajectory(trajectory_data, training_objective)
+
+                        for example in examples:
+                            example["trajectory"] = str(shortest_path)
+                            example["trajectory_badges"] = str(badge_list)
+                            example["node_name"] = node_name
+                            output.append(example)
 
     return output
 
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="Create SFT datasets from MCTS trajectories")
+    parser.add_argument(
+        "--objective",
+        type=str,
+        choices=["bug_fixing", "value_function"],
+        default="bug_fixing",
+        help="Training objective: 'bug_fixing' for action agent or 'value_function' for reward model (default: bug_fixing)"
+    )
+    args = parser.parse_args()
+
+    training_objective = args.objective
+
     dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
     output_dir = "./datasets"
     os.makedirs(output_dir, exist_ok=True)
+
 
     # filter to only directories that have trajectory.json, this prevents some issues for folders like 'prompt_logs' or 'logs'
     # that don't have a trajectory.json inside them
@@ -568,7 +677,8 @@ if __name__ == "__main__":
     for folder in issues:
         print(f"\nNow parsing {folder.split('/')[-1]}\n")
         output = parse_trajectory_tree(
-            selected_tree_path=os.path.join(dir, folder, "trajectory.json")
+            selected_tree_path=os.path.join(dir, folder, "trajectory.json"),
+            training_objective=training_objective
         )
         output_id = folder.split("/")[-1]
         for example in output:
@@ -583,13 +693,18 @@ if __name__ == "__main__":
     df_train = df[df.trajectory_id.isin(first_sans_three_folders)]
     df_test = df[df.trajectory_id.isin(last_three_folders)]
 
-    df.to_csv(os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft.csv"))
+    # add objective suffix to filenames to differentiate datasets
+    objective_suffix = f"_{training_objective}" if training_objective != "bug_fixing" else ""
+
+    df.to_csv(os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft{objective_suffix}.csv"))
     df_train.to_csv(
-        os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft_train.csv")
+        os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft{objective_suffix}_train.csv")
     )
     df_test.to_csv(
-        os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft_test.csv")
+        os.path.join(output_dir, f"{dir.split('/')[-1]}_trajectories_sft{objective_suffix}_test.csv")
     )
+
+    print(f"Training objective: {training_objective}")
 
     print(
         f"Length of df, df_train, df_test: {len(df)}, {len(df_train)}, {len(df_test)}"

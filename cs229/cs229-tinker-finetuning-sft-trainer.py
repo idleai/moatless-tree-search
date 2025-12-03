@@ -10,6 +10,7 @@ Prerequisites:
     - Run this BEFORE DPO training to get a base checkpoint
 
 Usage Examples:
+    # Bug-fixing agent training (default)
     # quick test run (5 examples, 2 GPUs)
     python cs229-tinker-finetuning-sft-trainer.py mode=test
 
@@ -19,18 +20,24 @@ Usage Examples:
     # full training run (all data, 8 GPUs)
     python cs229-tinker-finetuning-sft-trainer.py mode=full
 
+    # Value/reward model training
+    python cs229-tinker-finetuning-sft-trainer.py \
+        mode=test \
+        objective=value_function
+
     # custom configuration
     python cs229-tinker-finetuning-sft-trainer.py \
         mode=full \
+        objective=bug_fixing \
         learning_rate=0.0005 \
-        num_epochs=3 \
-        num_replicas=16
+        num_epochs=3
 
     # with W&B logging
     python cs229-tinker-finetuning-sft-trainer.py \
         mode=full \
-        wandb_project=cs229-sft \
-        wandb_name=qwen3-4b-sft-run1
+        objective=value_function \
+        wandb_project=cs229-sft-value \
+        wandb_name=qwen3-4b-value-run1
 """
 
 import asyncio
@@ -53,6 +60,9 @@ class RunConfig:
 
     # run mode: controls dataset size and infrastructure
     mode: str = "test"  # "test", "small", or "full"
+
+    # training objective controls which type of dataset to use
+    objective: str = "bug_fixing"  # "bug_fixing" or "value_function"
 
     dataset_name: str = "20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
 
@@ -114,6 +124,9 @@ def main(cfg: RunConfig):
     if cfg.mode not in mode_configs:
         raise ValueError(f"Invalid mode '{cfg.mode}'. Must be 'test', 'small', or 'full'")
 
+    if cfg.objective not in ["bug_fixing", "value_function"]:
+        raise ValueError(f"Invalid objective '{cfg.objective}'. Must be 'bug_fixing' or 'value_function'")
+
     mode_cfg = mode_configs[cfg.mode]
 
     num_replicas = cfg.num_replicas if cfg.num_replicas is not None else mode_cfg["num_replicas"]
@@ -127,12 +140,17 @@ def main(cfg: RunConfig):
         learning_rate = cfg.learning_rate
         logger.info(f"Using custom learning rate: {learning_rate:.2e}")
 
+    # add suffix to dataset name based on objective
+    objective_suffix = f"_{cfg.objective}" if cfg.objective == "value_function" else ""
+
     datasets_dir = Path("./datasets")
-    train_csv = datasets_dir / f"{cfg.dataset_name}_trajectories_sft_train.csv"
-    test_csv = datasets_dir / f"{cfg.dataset_name}_trajectories_sft_test.csv"
+    train_csv = datasets_dir / f"{cfg.dataset_name}_trajectories_sft{objective_suffix}_train.csv"
+    test_csv = datasets_dir / f"{cfg.dataset_name}_trajectories_sft{objective_suffix}_test.csv"
 
     if not train_csv.exists():
         raise FileNotFoundError(f"Training CSV not found: {train_csv}")
+
+    log_path = f"{cfg.log_path}{objective_suffix}"
 
     dataset_builder = create_dataset_builder(
         train_csv_path=str(train_csv),
@@ -147,7 +165,7 @@ def main(cfg: RunConfig):
 
     config = SFTConfig(
         # required parameters
-        log_path=cfg.log_path,
+        log_path=log_path,
         model_name=cfg.model_name,
         dataset_builder=dataset_builder,
         load_checkpoint_path=cfg.load_checkpoint,
@@ -175,7 +193,10 @@ def main(cfg: RunConfig):
         infrequent_evaluator_builders=[],
     )
 
-    logger.info(f"SFT Training Configuration - Mode: {cfg.mode.upper()}")
+    objective_display = cfg.objective.upper().replace("_", " ")
+    logger.info(f"SFT Training Configuration")
+    logger.info(f"Objective: {objective_display}")
+    logger.info(f"Mode: {cfg.mode.upper()}")
     logger.info(f"Model: {config.model_name}")
     logger.info(f"Dataset: {train_csv.name}")
     logger.info(f"- Train examples: {mode_cfg['max_train_examples'] or 'ALL'}")
