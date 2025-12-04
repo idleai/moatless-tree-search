@@ -6,6 +6,8 @@ from litellm.types.llms.openai import ChatCompletionUserMessage
 from pydantic import BaseModel, Field
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from torch import nn
+import torch
 
 from moatless.actions.action import Action, RewardScaleEntry
 from moatless.completion.completion import CompletionModel
@@ -16,6 +18,21 @@ from moatless.value_function.model import Reward
 from moatless.value_function.value_function_weights import theta
 
 logger = logging.getLogger(__name__)
+
+
+class MultiLayerPerceptronScalarOutput(nn.Module):
+    def __init__(self, hidden_dim: int):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(772, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, x):
+        return self.layers(x)
 
 
 class ValueFunction(BaseModel):
@@ -206,31 +223,47 @@ class ValueFunction(BaseModel):
 
             # get value function weights - direct import at top of file
             # compile state vector
-            STATE_DIM = 774
+            STATE_DIM = 772
             state = np.zeros((STATE_DIM,))
             if not node.parent:
                 state[0] = node.get_depth()
                 state[1] = 0
                 state[2] = 0
-                state[3] = 0
-                state[4] = int(completion_response.structured_output.value)
-                state[5] = 0
-                state[6 : 6 + 384] = sentence_embedding_model(get_prompt(node))
-                state[6 + 384 : 6 + 384 * 2] = np.zeros((384,))
+                state[3] = int(completion_response.structured_output.value)
+                state[3 : 3 + 384] = sentence_embedding_model(get_prompt(node))
+                state[3 + 384 : 3 + 384 * 2] = np.zeros((384,))
             else:
                 state[0] = node.get_depth()
                 state[1] = get_action_id(node.action_steps)
-                pass_rate, error_rate = get_latest_test_results(node)
+                pass_rate, _ = get_latest_test_results(node)
                 state[2] = pass_rate
-                state[3] = error_rate
-                state[4] = int(completion_response.structured_output.value)
-                state[5] = 0
-                state[6 : 6 + 384] = sentence_embedding_model(get_prompt(node))
-                state[6 + 384 : 6 + 384 * 2] = sentence_embedding_model(
+                state[3] = int(completion_response.structured_output.value)
+                state[3 : 3 + 384] = sentence_embedding_model(get_prompt(node))
+                state[3 + 384 : 3 + 384 * 2] = sentence_embedding_model(
                     node.assistant_message
                 )
 
-            reward = int(np.dot(theta, state))
+            def normalize(x):
+                if len(x.size()) == 1:
+                    return (x - torch.mean(x)) / torch.std(x)
+                else:
+                    return (x - torch.mean(x, axis=1, keepdims=True)) / torch.std(
+                        x, axis=1, keepdims=True
+                    )
+
+            # compute value from value function
+            MODEL_PATH = "./moatless/value_function/value_function_750_3000_128_sgdoptim_normalized_750_5_20.pt"
+            hidden_dim = 128
+            value_function_model = MultiLayerPerceptronScalarOutput(
+                hidden_dim=hidden_dim
+            )
+            value_function_model.load_state_dict(
+                torch.load(MODEL_PATH, weights_only=True)
+            )
+            with torch.no_grad():
+                x = normalize(torch.tensor(state, dtype=torch.float32))
+                reward = int(value_function_model(x).numpy())
+
             completion_response.structured_output.value = reward
 
             return completion_response.structured_output, completion_response.completion
