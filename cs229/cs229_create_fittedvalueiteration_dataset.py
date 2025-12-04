@@ -405,58 +405,50 @@ def get_test_success_rates(node: str, prior_node: dict, eval_result: dict):
     if node.strip("Node") in eval_result["node_results"].keys():
         tests_status = eval_result["node_results"][node.strip("Node")]["tests_status"]
         if tests_status["status"] == "RESOLVED_FULL":
-            p2p_test_success = 1
-            f2p_test_success = 1
+            test_success = 1
         else:
             try:
                 num_p2p_success = len(tests_status["pass_to_pass"]["success"])
                 num_p2p_failure = len(tests_status["pass_to_pass"]["failure"])
-                p2p_test_success = num_p2p_success / max(
-                    num_p2p_success + num_p2p_failure, 1
-                )
-            except:
-                p2p_test_success = prior_node["p2p_test_success"]
-            try:
                 num_f2p_success = len(tests_status["fail_to_pass"]["success"])
                 num_f2p_failure = len(tests_status["fail_to_pass"]["failure"])
-                f2p_test_success = num_f2p_success / max(
-                    num_f2p_success + num_f2p_failure, 1
+                test_success = (num_f2p_success + num_p2p_success) / max(
+                    num_f2p_success
+                    + num_f2p_failure
+                    + num_p2p_success
+                    + num_p2p_failure,
+                    1,
                 )
             except:
-                f2p_test_success = prior_node["f2p_test_success"]
+                test_success = prior_node["test_success"]
     else:
-        p2p_test_success = prior_node["p2p_test_success"]
-        f2p_test_success = prior_node["f2p_test_success"]
+        test_success = prior_node["test_success"]
 
-    return p2p_test_success, f2p_test_success
+    return test_success
 
 
 def create_example(origin_node: dict, action: int, destination_node: dict):
-    # x dim: 1+1+1+1+1+1+384+384+1 = 775
-    # y dim: 1+1+1+1+1+1+384+384 = 774 (-1 for no action)
-    x_dim, y_dim = (775, 774)
+    # x dim: 1+1+1+1+384+384+1 = 773
+    # y dim: 1+1+1+1+384+384 = 772 (-1 for no action)
+    x_dim, y_dim = (773, 772)
 
     x = np.zeros((x_dim,))
     y = np.zeros((y_dim,))
 
     x[0] = origin_node["depth"]
     x[1] = origin_node["prior_action"]
-    x[2] = origin_node["p2p_test_success"]
-    x[3] = origin_node["f2p_test_success"]
-    x[4] = origin_node["reward"]
-    x[5] = origin_node["badge"]
-    x[6 : 6 + 384] = origin_node["prompt_embedding"]
-    x[6 + 384 : 6 + 384 * 2] = origin_node["prior_action_embedding"]
-    x[6 + 384 * 2] = action
+    x[2] = origin_node["test_success"]
+    x[3] = origin_node["reward"]
+    x[3 : 3 + 384] = origin_node["prompt_embedding"]
+    x[3 + 384 : 3 + 384 * 2] = origin_node["prior_action_embedding"]
+    x[3 + 384 * 2] = action
 
     y[0] = destination_node["depth"]
     y[1] = destination_node["prior_action"]
-    y[2] = destination_node["p2p_test_success"]
-    y[3] = destination_node["f2p_test_success"]
-    y[4] = destination_node["reward"]
-    y[5] = destination_node["badge"]
-    y[6 : 6 + 384] = destination_node["prompt_embedding"]
-    y[6 + 384 : 6 + 384 * 2] = destination_node["prior_action_embedding"]
+    y[2] = destination_node["test_success"]
+    y[3] = destination_node["reward"]
+    y[3 : 3 + 384] = destination_node["prompt_embedding"]
+    y[3 + 384 : 3 + 384 * 2] = destination_node["prior_action_embedding"]
 
     return x, y
 
@@ -533,10 +525,8 @@ def parse_trajectory_tree(
                 origin_node = {
                     "depth": j,
                     "prior_action": 0,
-                    "p2p_test_success": 0,
-                    "f2p_test_success": 0,
+                    "test_success": 0,
                     "reward": G.nodes[node].get("reward", 0),
-                    "badge": get_badge_id(badge_list[j]),
                     "prompt_embedding": prompt_embedding,
                     "prior_action_embedding": np.zeros((384,)),
                 }
@@ -549,7 +539,7 @@ def parse_trajectory_tree(
             )
 
             # get test success at destination_node
-            p2p_test_success, f2p_test_success = get_test_success_rates(
+            p2p_test_success = get_test_success_rates(
                 shortest_path[j + 1], origin_node, eval_result
             )
 
@@ -564,10 +554,8 @@ def parse_trajectory_tree(
             destination_node = {
                 "depth": j + 1,  # dim: 1
                 "prior_action": action,  # dim: 1
-                "p2p_test_success": p2p_test_success,  # dim: 1
-                "f2p_test_success": f2p_test_success,  # dim: 1
+                "test_success": p2p_test_success,  # dim: 1
                 "reward": G.nodes[shortest_path[j + 1]].get("reward", 0),  # dim: 1
-                "badge": get_badge_id(badge_list[j + 1]),  # dim: 1
                 "prompt_embedding": prompt_embedding,  # dim: 384
                 "prior_action_embedding": prior_action_embedding,  # dim: 384
             }

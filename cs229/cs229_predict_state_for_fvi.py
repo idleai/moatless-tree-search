@@ -1,4 +1,5 @@
 import os
+from matplotlib import pyplot as plt
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -19,14 +20,14 @@ print(f"Using {device} device")
 
 
 class MultiLayerPerceptron(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_dim: int):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Linear(775, 128),
+            nn.Linear(773, hidden_dim),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(128, 774),
+            nn.Linear(hidden_dim, 772),
         )
 
     def forward(self, x):
@@ -45,9 +46,18 @@ class FVIDataset(Dataset):
 
     def __getitem__(self, idx):
         entry = self.data[idx, :]
-        x = torch.tensor(entry[:775], dtype=torch.float32)
-        y = torch.tensor(entry[775:], dtype=torch.float32)
+        x = torch.tensor(entry[:773], dtype=torch.float32)
+        y = torch.tensor(entry[773:], dtype=torch.float32)
         return x, y
+
+
+##### Functions
+
+
+def normalize(x, eps=1e-12):
+    return (x - torch.mean(x, axis=1, keepdims=True)) / torch.std(
+        x, axis=1, keepdims=True
+    )
 
 
 ##### Load data
@@ -55,6 +65,8 @@ class FVIDataset(Dataset):
 data = np.load("./datasets/fvi_nn_x.npy")
 labels = np.load("./datasets/fvi_nn_y.npy")
 train_ratio = 0.9
+batch_size = 128
+hidden_dim = 128
 
 dim_data = data.shape[1]
 
@@ -68,12 +80,12 @@ val_data = data[split_idx:]
 train_dataset = FVIDataset(train_data)
 val_dataset = FVIDataset(val_data)
 
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 ##### Load model and set up training
 
-model = MultiLayerPerceptron().to(device)
+model = MultiLayerPerceptron(hidden_dim=hidden_dim).to(device)
 print(model)
 
 optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
@@ -82,11 +94,13 @@ loss_fn = nn.MSELoss()
 # Remember to use the GPU
 model.to(device)
 
-num_epochs = 100
+num_epochs = 3000
+train_loss = []
+valua_loss = []
 for epoch in range(num_epochs):
     total_loss = 0
     for x, y in train_loader:
-        xx = x.to(device)
+        xx = normalize(x).to(device)
         yy = y.to(device)
         yy_pred = model(xx)
         loss = loss_fn(yy, yy_pred)
@@ -101,7 +115,7 @@ for epoch in range(num_epochs):
     eval_loss = 0
     with torch.no_grad():
         for x, y in val_loader:
-            xx = x.to(device)
+            xx = normalize(x).to(device)
             yy = y.to(device)
             yy_pred = model(xx)
             eval_loss += loss_fn(yy, yy_pred)
@@ -109,6 +123,22 @@ for epoch in range(num_epochs):
     print(
         f"Epoch {epoch+1}: Train Loss = {total_loss/len(train_loader):.4f}, Val Loss = {eval_loss/len(val_loader):.4}"
     )
+    train_loss.append(float(total_loss / len(train_loader)))
+    valua_loss.append(float(eval_loss / len(val_loader)))
+
+fig, (ax1, ax2) = plt.subplots(1, 2)
+ax1.plot(range(num_epochs), train_loss)
+ax2.plot(range(num_epochs), valua_loss)
+ax1.set_xlabel("Epoch")
+ax2.set_xlabel("Epoch")
+ax1.set_ylabel("Training Loss")
+ax2.set_ylabel("Evaluation Loss")
+plt.savefig(
+    f"./fvi/loss_curves_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized.png"
+)
 
 os.makedirs("./fvi/", exist_ok=True)
-torch.save(model.state_dict(), "./fvi/state_predictor.pt")
+torch.save(
+    model.state_dict(),
+    f"./fvi/state_predictor_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized.pt",
+)

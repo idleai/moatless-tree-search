@@ -5,6 +5,7 @@ from scipy.signal import lfilter
 from copy import deepcopy
 import torch
 from torch import nn
+from torch.utils.data import DataLoader, Dataset
 import os
 
 # from cs229_predict_state_for_fvi import MultiLayerPerceptron
@@ -13,134 +14,208 @@ import os
 Parts of code drawn from CS229 PS4 inverted pendulum problem
 """
 
-STATE_DIM = 774
+STATE_DIM = 772
 
 ALL_POSSIBLE_ACTIONS = [i for i in range(10)]
 
 
 class MultiLayerPerceptron(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_dim: int):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Linear(775, 128),
+            nn.Linear(773, hidden_dim),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(128, 774),
+            nn.Linear(hidden_dim, 772),
         )
 
     def forward(self, x):
         return self.layers(x)
 
 
-def initialize_mdp_data(
-    state_dim,
-) -> (
-    dict
-):  # mdp_params = {"transition_counts":__, "transition_probs": __, "reward_counts": __, "reward": __, "value": __}
-    """
-    Returns a variable containing all the parameters/state needed for an MDP.
+class MultiLayerPerceptronScalarOutput(nn.Module):
+    def __init__(self, hidden_dim: int):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(772, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+        )
 
-    Assume that no transitions or rewards have been observed.
-    Initialize the value function array to small random values (0 to 0.10, say).
-    Initialize the transition probabilities uniformly (ie, probability of
-        transitioning for state x to state y using action a is exactly
-        1/num_states).
-    Initialize all state rewards to zero.
-
-    Args:
-        num_states: The number of states
-
-    Returns: The initial MDP parameters
-    """
-
-    theta = np.random.rand(state_dim) * 0.1
-
-    return theta
+    def forward(self, x):
+        return self.layers(x)
 
 
-# {
-# "theta": theta
-# "transition_counts": transition_counts,
-# "transition_probs": transition_probs,
-# "reward_counts": reward_counts,
-# "reward": reward,
-# "value": value,
-# "num_states": num_states,
-# }
+##### Define the dataset
+
+
+class FVI_VFDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        entry = self.data[idx, :]
+        x = torch.tensor(entry[:-1], dtype=torch.float32)
+        y = torch.tensor(entry[-1], dtype=torch.float32)
+        return x, y
+
+
+# def initialize_mdp_data(
+#     state_dim,
+# ) -> dict:
+
+#     theta = np.random.rand(state_dim) * 0.1
+#     return theta
+
+
+def normalize(x, eps=1e-12):
+    if len(x.size()) == 1:
+        return (x - torch.mean(x)) / torch.std(x)
+    else:
+        return (x - torch.mean(x, axis=1, keepdims=True)) / torch.std(
+            x, axis=1, keepdims=True
+        )
 
 
 def calculate_state_prime(model, initial_state, action):
 
     state_initial_w_action = np.concatenate((initial_state, [action]))
-    x = torch.tensor(state_initial_w_action, dtype=torch.float32)
+    x = normalize(torch.tensor(state_initial_w_action, dtype=torch.float32))
     with torch.no_grad():
-        state_final = model(x)
+        state_final = model(x).numpy()
 
     return state_final
 
 
-def get_reward(state):
+def get_reward(initial_state, final_state):
     """
     See create_example() in cs229_create_fittedvalueiteration_dataset.py for
     how the state vector is constructed from individual features
     """
-    return state[4]
+    return final_state[2] - initial_state[2]
 
 
-def get_value(state, theta):
+def get_value(state, model, device):
     """
-    Here we assume a linear function (i.e., the value function equals the
-    dot product between the state and theta vectors)
+    Here we assume a nonlinear function
     """
-    return np.dot(state, theta)
+    with torch.no_grad():
+        x = normalize(torch.tensor(state, dtype=torch.float32).to(device))
+        y = model(x).cpu().numpy()
+
+    return y
 
 
-def get_q_value(state_initial, gamma, state_final, theta):
-    return get_reward(state_initial) + gamma * get_value(state_final, theta)
+def update_value_function(
+    model, device, train_x, train_y, batch_size=5, max_num_epochs=1000, eps=1e-5
+):
+    train_data = np.concatenate([train_x, np.expand_dims(train_y, axis=1)], axis=1)
+    train_dataset = FVI_VFDataset(train_data)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+    loss_fn = nn.MSELoss()
+    prev_train_loss = 1e6
+    converged = False
+    while not converged:
+        for epoch in range(max_num_epochs):
+            total_loss = 0
+            for x, y in train_loader:
+                xx = normalize(x).to(device)
+                yy = y.to(device)
+                yy_pred = model(xx)
+                loss = loss_fn(torch.unsqueeze(yy, 1), yy_pred)
+
+                optimizer.zero_grad()  # reset the computed gradients to 0
+                loss.backward()  # compute the gradients
+                optimizer.step()  # take one step using the computed gradients and optimizer
+                total_loss += loss.item()  # track your loss
+            train_loss = total_loss / len(train_loader)
+            if abs(train_loss - prev_train_loss) <= eps:
+                converged = True
+                break
+            elif epoch == max_num_epochs - 1:
+                print(
+                    "Warning: value function training did not converge before max epochs hit"
+                )
+                converged = True
+                break
+            else:
+                # if epoch % 50 == 0:
+                #     print(f"    Training loss on epoch {epoch}: {train_loss}")
+                prev_train_loss = train_loss
+    return
 
 
-def update_value_function(theta, x, y, eps=1e-5, step_size=1e-10):
-    """
-    This update rule currently assumes we are solving a linear regression problem.
-    """
-
-    n_examples, dim = x.shape
-
-    Y = np.broadcast_to(y, (dim, n_examples))
-
-    stopping_criterion_not_reached = True
-    while stopping_criterion_not_reached:
-
-        theta_old = deepcopy(theta)
-
-        # mat: (dim, n_examples)
-        mat = Y - np.broadcast_to(x @ theta, [dim, n_examples])
-
-        theta = theta + step_size * np.sum(np.multiply(mat, x.T), axis=1)
-
-        if np.linalg.norm(theta_old - theta) < eps:
-            stopping_criterion_not_reached = False
-
-    return theta
+def get_q_value(state_initial, gamma, state_final, model, device):
+    return get_reward(state_initial, state_final) + gamma * get_value(
+        state_final, model, device
+    )
 
 
-def main(plot=True):
+# def update_value_function(theta, x, y, eps=1e-5, step_size=1e-10):
+#     """
+#     This update rule currently assumes we are solving a linear regression problem.
+#     """
+
+#     n_examples, dim = x.shape
+
+#     Y = np.broadcast_to(y, (dim, n_examples))
+
+#     stopping_criterion_not_reached = True
+#     while stopping_criterion_not_reached:
+
+#         theta_old = deepcopy(theta)
+
+#         # mat: (dim, n_examples)
+#         mat = Y - np.broadcast_to(x @ theta, [dim, n_examples])
+
+#         theta = theta + step_size * np.sum(np.multiply(mat, x.T), axis=1)
+
+#         if np.linalg.norm(theta_old - theta) < eps:
+#             stopping_criterion_not_reached = False
+
+#     return theta
+
+
+def main(
+    hidden_dim,
+    nn_batch_size,
+    nn_num_epochs,
+    batch_size,
+    batch_size_vf,
+    max_iter,
+    plot=True,
+):
     # Seed the randomness of the simulation so this outputs the same thing each time
     # np.random.seed(0)
 
-    GAMMA = 0.995
+    GAMMA = 0.99
     TOLERANCE = 0.01
     NO_LEARNING_THRESHOLD = 20
 
-    # # You should reach convergence well before this
-    # max_failures = 500
-
-    # # Load model
-    MODEL_PATH = "./fvi/state_predictor.pt"
-    model = MultiLayerPerceptron()
+    # # Load model for state prediction from (initial_state,action)
+    MODEL_PATH = "./fvi/state_predictor_128_3000_128_sgdoptim_normalized.pt"
+    # MODEL_PATH = "./fvi/state_predictor.pt"
+    model = MultiLayerPerceptron(hidden_dim=hidden_dim)
     model.load_state_dict(torch.load(MODEL_PATH, weights_only=True))
     model.eval()
+
+    # Initialize value function model
+    device = (
+        torch.accelerator.current_accelerator().type
+        if torch.accelerator.is_available()
+        else "cpu"
+    )
+    print(f"Using {device} device")
+    value_function_model = MultiLayerPerceptronScalarOutput(hidden_dim=hidden_dim).to(
+        device
+    )
 
     # # Load buffer of example states
     # NOTE: We only need states, not transitions, because we will simulate transitions
@@ -157,24 +232,32 @@ def main(plot=True):
     num_samples = data.shape[0]
 
     # Initialize parameters (of value function that we are trying to learn)
-    theta = initialize_mdp_data(STATE_DIM)
+    # theta = initialize_mdp_data(STATE_DIM)
 
     # This is the criterion to end the simulation.
-    # You should change it to terminate when the previous
-    # 'NO_LEARNING_THRESHOLD' consecutive value function computations all
-    # converged within one value function iteration. Intuitively, it seems
-    # like there will be little learning after this, so end the simulation
-    # here, and say the overall algorithm has converged.
-
     consecutive_no_learning_trials = 0
-    batch_size = 100
     error = []
-    while consecutive_no_learning_trials < NO_LEARNING_THRESHOLD:
+    first_iteration = True
+    num_iter = 0
+    while (
+        consecutive_no_learning_trials < NO_LEARNING_THRESHOLD and num_iter < max_iter
+    ):
 
         # choose a random sample of states from the buffer
         idx = np.random.randint(num_samples, size=batch_size)
         data_batch = data[idx, :]
         y_batch = np.zeros((batch_size,))
+
+        # data_batch = data
+        # batch_size = data_batch.shape[0]
+        # y_batch = np.zeros((batch_size,))
+
+        if first_iteration:
+            test_convergence_batch = deepcopy(data_batch)
+            prior_test_convergence_values = get_value(
+                test_convergence_batch, value_function_model, device
+            )
+            first_iteration = False
 
         # for each sample in the batch
         for i in range(batch_size):
@@ -186,43 +269,68 @@ def main(plot=True):
 
                 state_final = calculate_state_prime(model, state_initial, action)
                 q_value_per_action[j] = get_q_value(
-                    state_initial, GAMMA, state_final, theta
+                    state_initial, GAMMA, state_final, value_function_model, device
                 )
 
             y_batch[i] = max(q_value_per_action)
 
         # update theta for this batch
-        theta_old = deepcopy(theta)
-        theta = update_value_function(theta, data_batch, y_batch)
+        update_value_function(
+            value_function_model, device, data_batch, y_batch, batch_size=batch_size_vf
+        )
 
         # check for convergence
-        max_abs_change = np.max(np.abs(theta - theta_old))
+        test_convergence_values = get_value(
+            test_convergence_batch, value_function_model, device
+        )
+        max_abs_change = np.max(
+            np.abs(test_convergence_values - prior_test_convergence_values)
+        )
         error.append(max_abs_change)
         if max_abs_change <= TOLERANCE:
             converged_in_one_iteration = True
         else:
             converged_in_one_iteration = False
+            prior_test_convergence_values = deepcopy(test_convergence_values)
 
-        print(f"Concluded iteration {len(error)}. Error: {max_abs_change}.")
+        print(f"Concluded iteration {num_iter}. Error: {max_abs_change}.")
         # update progress towards training completion if convergence occurs
         if converged_in_one_iteration:
             consecutive_no_learning_trials = consecutive_no_learning_trials + 1
         else:
             consecutive_no_learning_trials = 0
 
+        num_iter += 1
+
     if plot:
         # plot the learning curve (time balanced vs. trial)
         plt.plot([i for i in range(len(error))], error, "k-")
         plt.xlabel("Num epochs")
         plt.ylabel("Error (max absolute change in theta)")
-        plt.savefig("./fvi_error.pdf")
+        plt.savefig(
+            f"./fvi_error_{nn_batch_size}_{nn_num_epochs}_{hidden_dim}_sgdoptim_{batch_size}.png"
+        )
 
-    return theta
+    return value_function_model
 
 
 if __name__ == "__main__":
-    theta = main()
+    hidden_dim = 128
+    nn_batch_size = 128
+    nn_num_epochs = 3000
+    batch_size = 750
+    batch_size_vf = 5
+    max_iter = 20
+    model = main(
+        hidden_dim=hidden_dim,
+        nn_batch_size=nn_batch_size,
+        nn_num_epochs=nn_num_epochs,
+        batch_size=batch_size,
+        batch_size_vf=batch_size_vf,
+        max_iter=max_iter,
+    )
     output_dir = "./fvi"
-
-    with open(os.path.join(output_dir, "fvi_theta.npy"), "wb") as f:
-        np.save(f, theta)
+    torch.save(
+        model.state_dict(),
+        f"./fvi/value_function_{batch_size}_{nn_num_epochs}_{hidden_dim}_sgdoptim_normalized_{batch_size}_{batch_size_vf}_{max_iter}.pt",
+    )
