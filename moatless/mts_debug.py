@@ -109,6 +109,18 @@ def parse_args():
         help="Resume from a previous run directory. Skips already-completed instances (those with trajectory.json)"
     )
 
+    # Retry options for resume
+    parser.add_argument(
+        "--retry-no-result",
+        action="store_true",
+        help="When resuming, also retry instances that finished with 'no_result' status (no solution found)"
+    )
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="When resuming, also retry instances that finished with 'error' status"
+    )
+
     return parser.parse_args()
 
 
@@ -133,7 +145,7 @@ MODEL_COMPLETION_CONFIGS = {
     },
     "qwen3-coder-30b-a3b-instruct": {
         "max_tokens": 32768,
-        "timeout": 300.0,
+        "timeout": 600.0,
     },
 }
 
@@ -149,10 +161,17 @@ def get_completion_config(model_name: str) -> dict:
     return {}
 
 
-def detect_completed_instances(output_dir: str) -> dict:
+def detect_completed_instances(output_dir: str, skip_no_result: bool = True, skip_errors: bool = True) -> dict:
     """
     Detect instances that have already been completed by checking for trajectory.json files
     with run_status="finished" in metadata.
+
+    Args:
+        output_dir: Directory to scan for completed instances
+        skip_no_result: If True, treat 'no_result' status as completed (skip on resume).
+                       If False, these instances will be re-run.
+        skip_errors: If True, treat 'error' status as completed (skip on resume).
+                    If False, these instances will be re-run.
 
     Returns a dict mapping instance_id -> result dict (loaded from run_summary.json if available,
     or reconstructed from trajectory.json).
@@ -161,6 +180,13 @@ def detect_completed_instances(output_dir: str) -> dict:
 
     if not os.path.exists(output_dir):
         return completed
+
+    # Build the set of statuses to consider as "completed" (skip on resume)
+    completed_statuses = {"completed"}
+    if skip_no_result:
+        completed_statuses.add("no_result")
+    if skip_errors:
+        completed_statuses.add("error")
 
     # First, try to load results from run_summary.json if it exists
     summary_path = os.path.join(output_dir, "run_summary.json")
@@ -171,7 +197,7 @@ def detect_completed_instances(output_dir: str) -> dict:
             # Extract results indexed by instance_id
             for result in summary_data.get("results", []):
                 instance_id = result.get("instance_id")
-                if instance_id and result.get("status") in ("completed", "no_result"):
+                if instance_id and result.get("status") in completed_statuses:
                     completed[instance_id] = result
         except (json.JSONDecodeError, KeyError):
             pass
@@ -610,7 +636,7 @@ def save_evaluation_json(
     return eval_path
 
 
-def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None, resume_dir: str = None):
+def run_parallel_instances(instance_ids: list, model_name: str, tree_search_config: dict, max_parallel: int, dataset_path: str = None, resume_dir: str = None, retry_no_result: bool = False, retry_errors: bool = False):
     """Run multiple instances in parallel using ThreadPoolExecutor.
 
     Args:
@@ -620,6 +646,8 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
         max_parallel: Maximum parallel instances
         dataset_path: Path to dataset file (for logging)
         resume_dir: If provided, resume from this directory (skip completed instances)
+        retry_no_result: If True, retry instances that finished with 'no_result' status
+        retry_errors: If True, retry instances that finished with 'error' status
     """
     logger = logging.getLogger("mts.parallel")
     run_start_time = time.time()
@@ -640,10 +668,19 @@ def run_parallel_instances(instance_ids: list, model_name: str, tree_search_conf
             run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         logger.info(f"=== RESUMING RUN from {run_output_dir} ===")
+        if retry_no_result:
+            logger.info("  --retry-no-result: Will re-run instances with 'no_result' status")
+        if retry_errors:
+            logger.info("  --retry-errors: Will re-run instances with 'error' status")
 
         # Detect already-completed instances
-        completed_instances = detect_completed_instances(run_output_dir)
-        logger.info(f"Found {len(completed_instances)} already-completed instances")
+        # skip_no_result and skip_errors are the inverse of retry flags
+        completed_instances = detect_completed_instances(
+            run_output_dir,
+            skip_no_result=not retry_no_result,
+            skip_errors=not retry_errors
+        )
+        logger.info(f"Found {len(completed_instances)} instances to skip")
 
         # Filter out completed instances
         pending_instance_ids = [iid for iid in instance_ids if iid not in completed_instances]
@@ -890,7 +927,9 @@ def main():
                 tree_search_config=tree_search_config,
                 max_parallel=args.max_parallel,
                 dataset_path=dataset_path,
-                resume_dir=resume_dir
+                resume_dir=resume_dir,
+                retry_no_result=args.retry_no_result,
+                retry_errors=args.retry_errors
             )
         else:
             logger.error(f"Could not find dataset_path in previous run config at: {resume_dir}")
