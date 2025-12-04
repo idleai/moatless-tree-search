@@ -23,7 +23,7 @@ from moatless.repository.repository import Repository
 from moatless.runtime.runtime import RuntimeEnvironment
 from moatless.selector import BestFirstSelector, Selector, SoftmaxSelector, LLMSelector
 from moatless.selector.feedback_selector import FeedbackSelector
-from moatless.value_function.base import ValueFunction
+from moatless.value_function.base import ValueFunction, ValueFunction2
 from moatless.value_function.model import Reward
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class SearchTree(BaseModel):
     expander: Optional[Expander] = Field(
         None, description="Expander for expanding nodes."
     )
-    value_function: Optional[ValueFunction] = Field(
+    value_function: Optional[ValueFunction | ValueFunction2] = Field(
         None, description="Value function for reward calculation."
     )
     feedback_generator: Optional[FeedbackGenerator] = Field(
@@ -111,7 +111,7 @@ class SearchTree(BaseModel):
         repository: Repository | None = None,
         selector: Optional[Selector] = None,
         agent: Optional[ActionAgent] = None,
-        value_function: Optional[ValueFunction] = None,
+        value_function: Optional[ValueFunction | ValueFunction2] = None,
         feedback_generator: Optional[FeedbackGenerator] = None,
         discriminator: Optional[Discriminator] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -586,7 +586,7 @@ class SearchTree(BaseModel):
         selector: Optional[Selector] = None,
         expander: Optional[Expander] = None,
         agent: Optional[ActionAgent] = None,
-        value_function: Optional[ValueFunction] = None,
+        value_function: Optional[ValueFunction | ValueFunction2] = None,
         feedback_generator: Optional[FeedbackGenerator] = None,
         discriminator: Optional[Discriminator] = None,
         metadata: Optional[Dict[str, Any]] = None,
