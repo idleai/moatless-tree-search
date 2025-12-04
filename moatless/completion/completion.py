@@ -1,18 +1,19 @@
 import json
 import logging
 import os
+import time
 from enum import Enum
 from textwrap import dedent
 from typing import Optional, Union, List, Any
 
 import litellm
-from litellm import Router
 import tenacity
 from litellm.exceptions import (
     BadRequestError,
     NotFoundError,
     AuthenticationError,
     APIError,
+    RateLimitError,
 )
 from pydantic import BaseModel, Field, model_validator, ValidationError
 
@@ -21,6 +22,15 @@ from moatless.exceptions import CompletionRejectError, CompletionRuntimeError
 
 logger = logging.getLogger(__name__)
 
+# Rate limit backoff duration in seconds (10 minutes default, can be overridden)
+RATE_LIMIT_BACKOFF_SECONDS = 600
+
+
+def set_rate_limit_backoff(seconds: int) -> None:
+    """Set the rate limit backoff duration in seconds."""
+    global RATE_LIMIT_BACKOFF_SECONDS
+    RATE_LIMIT_BACKOFF_SECONDS = seconds
+    logger.info(f"Rate limit backoff set to {seconds} seconds ({seconds / 60:.1f} minutes)")
 
 class LLMResponseFormat(str, Enum):
     TOOLS = "tool_call"
@@ -69,15 +79,16 @@ class CompletionResponse(BaseModel):
 
 class CompletionModel(BaseModel):
     model: str = Field(..., description="The model to use for completion")
-    temperature: float = Field(0.0, description="The temperature to use for completion")
-    max_tokens: int = Field(
-        2000, description="The maximum number of tokens to generate"
+    temperature: Optional[float] = Field(None, description="The temperature to use for completion")
+    max_tokens: Optional[int] = Field(
+        None, description="The maximum number of tokens to generate"
     )
     timeout: float = Field(
         120.0, description="The timeout in seconds for completion requests"
     )
     model_base_url: Optional[str] = Field(
-        default=None, description="The base URL for the model API"
+        default=None,
+        description="The base URL for the LiteLLM proxy API. Defaults to DEFAULT_LITELLM_BASE_URL if not set.",
     )
     model_api_key: Optional[str] = Field(
         default=None, description="The API key for the model", exclude=True
@@ -96,60 +107,15 @@ class CompletionModel(BaseModel):
         description="Whether to include thoughts in the action or in the message",
     )
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._router = None
+    @property
+    def api_base(self) -> str:
+        """Get the API base URL, defaulting to the LiteLLM proxy endpoint."""
+        return self.model_base_url or os.getenv("LITELLM_BASE_URL")
 
     @property
-    def router(self) -> Router:
-        """Get or create the LiteLLM router for load balancing between endpoints."""
-        
-        # ./llama-server -hf unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_XL -a "Qwen3-Coder-30B-A3B-Instruct-GGUF-Q4_K_XL" --tensor-split 1,0 --ctx-size 1048576 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8083 -np 4
-        # ./llama-server -hf unsloth/Qwen3-Coder-480B-A35B-Instruct-GGUF:Q2_K_L -a "Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L" --tensor-split 0.98,1.02 --ctx-size 131072 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8082 -np 1 --keep -1
-        if self._router is None:
-            # Check environment variable or model name to determine which model to use
-            use_480b = (
-                os.getenv("QWEN_MODEL_SIZE") == "480b" or
-                "480b" in self.model.lower()
-            )
-
-            if use_480b:
-                # 480B model configuration
-                model_list = [
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L",
-                            "api_base": "http://localhost:8082/",
-                            "api_key": "noop",
-                        }
-                    }
-                ]
-                logger.info("Initialized LiteLLM router for 480B model on localhost:8082")
-            else:
-                # 30B model configuration (default)
-                model_list = [
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
-                            "api_base": "http://localhost:8083/",
-                            "api_key": "noop",
-                        }
-                    },
-                    {
-                        "model_name": "qwen-coder",
-                        "litellm_params": {
-                            "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
-                            "api_base": "http://localhost:8084/",
-                            "api_key": "noop",
-                        }
-                    }
-                ]
-                logger.info("Initialized LiteLLM router for 30B model on localhost:8083, localhost:8084")
-
-            self._router = Router(model_list=model_list)
-        return self._router
+    def api_key(self) -> str:
+        """Get the API key for authentication."""
+        return self.model_api_key or os.getenv("LITELLM_API_KEY", "noop")
 
     def clone(self, **kwargs) -> "CompletionModel":
         """Create a copy of the completion model with optional parameter overrides.
@@ -175,7 +141,8 @@ class CompletionModel(BaseModel):
 
         if isinstance(response_model, list) and len(response_model) > 1:
             avalabile_actions = [
-                action for action in response_model if hasattr(action, "name")
+                action for action in response_model
+                if hasattr(action, "name") and getattr(action, "name", None) is not None
             ]
             if not avalabile_actions:
                 raise CompletionRuntimeError(f"No actions found in {response_model}")
@@ -200,12 +167,16 @@ class CompletionModel(BaseModel):
                         (
                             action
                             for action in avalabile_actions
-                            if action.name == action_type
+                            if getattr(action, "name", None) == action_type
                         ),
                         None,
                     )
                     if not action_class:
-                        action_names = [action.name for action in avalabile_actions]
+                        action_names = [
+                            getattr(action, "name", None)
+                            for action in avalabile_actions
+                            if getattr(action, "name", None) is not None
+                        ]
                         raise ValidationError(
                             f"Unknown action type: {action_type}. Available actions: {', '.join(action_names)}"
                         )
@@ -261,6 +232,19 @@ class CompletionModel(BaseModel):
                 if not assistant_message:
                     raise CompletionRuntimeError("Empty response from model")
 
+                # Check if the response is an error structure from the LLM provider
+                try:
+                    parsed = json.loads(assistant_message) if isinstance(assistant_message, str) else assistant_message
+                    if isinstance(parsed, dict) and "error" in parsed:
+                        error_info = parsed["error"]
+                        error_type = error_info.get("type", "unknown") if isinstance(error_info, dict) else str(error_info)
+                        error_msg = error_info.get("message", str(error_info)) if isinstance(error_info, dict) else str(error_info)
+                        raise CompletionRuntimeError(
+                            f"LLM returned an error response: type={error_type}, message={error_msg}"
+                        )
+                except json.JSONDecodeError:
+                    pass  # Not valid JSON, will be handled by validation below
+
                 messages.append({"role": "assistant", "content": assistant_message})
 
                 response = response_model.model_validate_json(assistant_message)
@@ -278,13 +262,38 @@ class CompletionModel(BaseModel):
                 return CompletionResponse.create(output=response, completion=completion)
 
             except (ValidationError, json.JSONDecodeError) as e:
+                # Build a more helpful error message for missing fields
+                error_str = str(e)
+                if "Field required" in error_str:
+                    # Extract the schema fields if possible
+                    try:
+                        schema = response_model.model_json_schema()
+                        required_fields = schema.get("required", [])
+                        properties = schema.get("properties", {})
+                        field_descriptions = []
+                        for field in required_fields:
+                            field_info = properties.get(field, {})
+                            field_type = field_info.get("type", "unknown")
+                            field_descriptions.append(f"  - {field}: {field_type}")
+                        fields_info = "\n".join(field_descriptions)
+                        error_message = (
+                            f"Your response is missing required fields. The JSON must have ALL of these fields:\n"
+                            f"{fields_info}\n\n"
+                            f"Your response was missing: {error_str}\n\n"
+                            f"Please provide a valid JSON with ALL required fields as SEPARATE keys."
+                        )
+                    except Exception:
+                        error_message = f"The response was invalid. Fix the errors, exceptions found\n{e}"
+                else:
+                    error_message = f"The response was invalid. Fix the errors, exceptions found\n{e}"
+
                 logger.warning(
                     f"Completion attempt failed with error: {e}. Will retry."
                 )
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"The response was invalid. Fix the errors, exceptions found\n{e}",
+                        "content": error_message,
                     }
                 )
                 raise CompletionRejectError(
@@ -325,19 +334,49 @@ class CompletionModel(BaseModel):
         """
         litellm.drop_params = True
 
+        def _should_retry_rate_limit(exception: BaseException) -> bool:
+            """Check if we should retry on rate limit with long backoff."""
+            if isinstance(exception, RateLimitError):
+                return True
+            # Also check for 429 status code in APIError
+            if isinstance(exception, APIError) and hasattr(exception, 'status_code'):
+                return exception.status_code == 429
+            return False
+
+        def _handle_rate_limit_wait(retry_state: tenacity.RetryCallState) -> None:
+            """Log and wait for rate limit backoff."""
+            exception = retry_state.outcome.exception()
+            logger.warning(
+                f"Rate limit (429) encountered. Waiting {RATE_LIMIT_BACKOFF_SECONDS} seconds (10 minutes) before retry. "
+                f"Error: {exception}"
+            )
+            time.sleep(RATE_LIMIT_BACKOFF_SECONDS)
+
         @tenacity.retry(
-            stop=tenacity.stop_after_attempt(2),
-            wait=tenacity.wait_exponential(multiplier=3),
+            stop=tenacity.stop_after_attempt(5),  # More attempts for rate limits
+            wait=tenacity.wait_exponential(multiplier=3, max=60),
             retry=tenacity.retry_if_exception_type(Exception),
             reraise=True,
-            before_sleep=lambda retry_state: logger.warning(
-                f"Retrying litellm completion after error: {retry_state.outcome.exception()}"
+            before_sleep=lambda retry_state: (
+                _handle_rate_limit_wait(retry_state)
+                if _should_retry_rate_limit(retry_state.outcome.exception())
+                else logger.warning(
+                    f"Retrying litellm completion after error: {retry_state.outcome.exception()}"
+                )
             ),
         )
         def _do_completion():
-            return self.router.completion(
-                model="qwen-coder",
-                max_tokens=131072,
+            # When using a LiteLLM proxy, prefix with openai/ so litellm routes to the proxy
+            # The proxy then uses the model name to route to the correct backend
+            model_name = self.model
+            if "/" not in model_name:
+                model_name = f"openai/{model_name}"
+
+            return litellm.completion(
+                model=model_name,
+                api_base=self.api_base,
+                api_key=self.api_key,
+                max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 messages=messages,
                 metadata=self.metadata or {},
@@ -346,7 +385,6 @@ class CompletionModel(BaseModel):
                 tools=tools,
                 tool_choice=tool_choice,
                 response_format=response_format,
-                request_timeout=self.timeout,
             )
 
         try:
@@ -405,9 +443,9 @@ class CompletionModel(BaseModel):
     @model_validator(mode="after")
     def set_api_key(self) -> "CompletionModel":
         """
-        Update the model with the API key from en vars if model base URL is set but API key is not as we don't persist the API key.
+        Update the model with the API key from env vars if not already set.
         """
-        if self.model_base_url and not self.model_api_key:
-            self.model_api_key = os.getenv("CUSTOM_LLM_API_KEY")
+        if not self.model_api_key:
+            self.model_api_key = os.getenv("LITELLM_API_KEY") or os.getenv("CUSTOM_LLM_API_KEY")
 
         return self

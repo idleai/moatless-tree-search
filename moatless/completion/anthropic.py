@@ -58,7 +58,7 @@ class AnthtropicCompletionModel(CompletionModel):
                 actions = [response_model]
 
             for action in actions:
-                if hasattr(action, "name") and action.name == "str_replace_editor":
+                if hasattr(action, "name") and getattr(action, "name", None) == "str_replace_editor":
                     tools.append(
                         {"name": "str_replace_editor", "type": "text_editor_20241022"}
                     )
@@ -119,7 +119,7 @@ class AnthtropicCompletionModel(CompletionModel):
                         return actions[0]
                     else:
                         for check_action in actions:
-                            if check_action.name == block.name:
+                            if getattr(check_action, "name", None) == block.name:
                                 return check_action
                     return None
 
@@ -137,7 +137,7 @@ class AnthtropicCompletionModel(CompletionModel):
                             action = actions[0]
                         else:
                             for check_action in actions:
-                                if check_action.name == block.name:
+                                if getattr(check_action, "name", None) == block.name:
                                     action = check_action
                                     break
 

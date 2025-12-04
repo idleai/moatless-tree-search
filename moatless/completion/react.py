@@ -27,9 +27,11 @@ class ReActCompletionModel(CompletionModel):
         retry_count = 0
 
         for action in response_model:
-            action_input_schemas.append(
-                f" * {action.name} {action.format_schema_for_llm()}"
-            )
+            action_name = getattr(action, "name", None)
+            if action_name is not None:
+                action_input_schemas.append(
+                    f" * {action_name} {action.format_schema_for_llm()}"
+                )
 
         system_prompt += dedent(f"""\n# Response format
 
@@ -85,10 +87,10 @@ Important: Do not include multiple Thought-Action blocks. Do not include code bl
 
                 # Find the matching action class
                 action_class = next(
-                    (a for a in response_model if a.name == action_name), None
+                    (a for a in response_model if getattr(a, "name", None) == action_name), None
                 )
                 if not action_class:
-                    action_names = [a.name for a in response_model]
+                    action_names = [getattr(a, "name", None) for a in response_model if getattr(a, "name", None) is not None]
                     raise ValueError(
                         f"Unknown action: {action_name}. Available actions: {', '.join(action_names)}"
                     )
