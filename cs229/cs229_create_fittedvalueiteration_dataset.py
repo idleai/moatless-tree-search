@@ -381,6 +381,7 @@ def get_action_id(
         "run_tests": 7,
         "verified_finish": 8,
         "string_replace": 9,
+        "append_string": 10,
     }
     if action not in ACTION_TO_ID.keys():
         print(f"Found unknown/none action: {action}")
@@ -453,34 +454,64 @@ def create_example(origin_node: dict, action: int, destination_node: dict):
     return x, y
 
 
-def parse_trajectory_tree(
-    selected_tree_path: str,
-):
+def get_latest_test_results(node: Node):
+    found_results = False
+    has_parent = True
+    while not found_results and has_parent:
+        if node.file_context:
+            passed_count, failure_count, error_count = (
+                node.file_context.get_test_counts()
+            )
+        else:
+            passed_count, failure_count, error_count = (0, 0, 0)
+
+        if passed_count + failure_count + error_count == 0 and node.parent:
+            node = node.parent
+        elif passed_count + failure_count + error_count == 0 and not node.parent:
+            pass_rate = 0.5
+            error_rate = 0
+            has_parent = False
+        else:
+            pass_rate = passed_count / (passed_count + failure_count + error_count)
+            error_rate = error_count / (passed_count + failure_count + error_count)
+            found_results = True
+
+    return pass_rate, error_rate
+
+
+def parse_trajectory_tree(selected_tree_path: str, selected_eval_path: str):
 
     # initialize output
     output_x = []
     output_y = []
 
+    with open(selected_tree_path, "r") as f:
+        traj = json.load(f)
+
+    # traj["temperature"] = 0.7
+    # traj["max_tokens"] = 1e5
+
+    # with open(selected_tree_path, "w") as f:
+    #     json.dump(traj, f)
+
     # get search tree
     search_tree = SearchTree.from_file(
         selected_tree_path,
     )
-    # nodes = search_tree.root.get_all_nodes()
+    nodes = search_tree.root.get_all_nodes()
     # total_nodes = count_total_nodes(search_tree.root)
 
     # get eval result
     directory_path = os.path.dirname(selected_tree_path)
-    eval_path = f"{directory_path}/eval_result.json"
-    if os.path.exists(eval_path):
-        with open(f"{directory_path}/eval_result.json", "r") as f:
+    # eval_path = f"{directory_path}/eval_result.json"
+    if os.path.exists(selected_eval_path):
+        with open(selected_eval_path, "r") as f:
+            # with open(f"{directory_path}/eval_result.json", "r") as f:
             eval_result = json.load(f)
 
     # get instance/issue/training example
     if search_tree.metadata.get("instance_id"):
         instance = get_moatless_instance(search_tree.metadata["instance_id"])
-
-    with open(selected_tree_path, "r") as f:
-        traj = json.load(f)
 
     node_value_function_action_list = parse_nodes_for_value_functions_and_actions(
         traj["root"]
@@ -492,7 +523,7 @@ def parse_trajectory_tree(
     }
 
     # Original graph visualization code
-    G = build_graph(search_tree.root, eval_result, instance)
+    G = build_graph(search_tree.root, instance=instance)
 
     # Get all nodes that have no neighbors -- these are terminal nodes
     terminal_nodes = []
@@ -539,9 +570,12 @@ def parse_trajectory_tree(
             )
 
             # get test success at destination_node
-            p2p_test_success = get_test_success_rates(
-                shortest_path[j + 1], origin_node, eval_result
-            )
+            node_id = int(node.strip("Node"))
+            node_object = [node for node in nodes if node.node_id == node_id][0]
+            test_success, _ = get_latest_test_results(node_object)
+            # p2p_test_success = get_test_success_rates(
+            #     shortest_path[j + 1], origin_node, eval_result
+            # )
 
             if value_function_action_map[shortest_path[j + 1]][2] is None:
                 prior_action_embedding = np.zeros((384,))
@@ -554,7 +588,7 @@ def parse_trajectory_tree(
             destination_node = {
                 "depth": j + 1,  # dim: 1
                 "prior_action": action,  # dim: 1
-                "test_success": p2p_test_success,  # dim: 1
+                "test_success": test_success,  # dim: 1
                 "reward": G.nodes[shortest_path[j + 1]].get("reward", 0),  # dim: 1
                 "prompt_embedding": prompt_embedding,  # dim: 384
                 "prior_action_embedding": prior_action_embedding,  # dim: 384
@@ -577,44 +611,80 @@ if __name__ == "__main__":
     ### EXTRACT TRAJECTORIES FROM PAST RUNS FOR FVI DATASET ###
     ###########################################################
 
-    dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
+    # dir = "./20251109_qwen3_coder_30b_a3b_instruct_0_7_exp_3_n_50_fmt_tool_call_hist_messages_8"
+    dir_pairs = [
+        (
+            "./lite/runs/run_20251202_122546_gh-gpt4.1",
+            "./lite/evals/moatless_gh-gpt4.1_20251202_122546/gh-gpt4.1",
+        ),
+        (
+            "./lite/runs/run_20251201_005614_gh-gpt4o",
+            "./lite/evals/moatless_gh-gpt4o_20251201_120158/gh-gpt4o",
+        ),
+        (
+            "./lite/runs/run_20251201_235506_qwen3-coder-30b-a3b-instruct",
+            "./lite/evals/moatless_qwen3-coder-30b-a3b-instruct_20251201_235506/qwen3-coder-30b-a3b-instruct",
+        ),
+        (
+            "./small/runs/run_20251130_230418_gh-gpt4.1",
+            "./small/evals/moatless_gh-gpt4.1_20251130_230418/gh-gpt4.1",
+        ),
+        (
+            "./small/runs/run_20251130_224239_gh-gpt4o",
+            "./small/evals/moatless_gh-gpt4o_20251130_224239/gh-gpt4o",
+        ),
+        (
+            "./small/runs/run_20251130_232912_gh-gpt5",
+            "./small/evals/moatless_gh-gpt5_20251130_232912/gh-gpt5",
+        ),
+        (
+            "./small/runs/run_20251130_231346_gh-gpt5-mini",
+            "./small/evals/moatless_gh-gpt5-mini_20251130_231346/gh-gpt5-mini",
+        ),
+        (
+            "./small/runs/run_20251130_235603_gh-gpt51",
+            "./small/evals/moatless_gh-gpt51_20251130_235603/gh-gpt51",
+        ),
+    ]
     output_dir = "./datasets"
     os.makedirs(output_dir, exist_ok=True)
-
-    # filter to only directories that have trajectory.json, this prevents some issues for folders like 'prompt_logs' or 'logs'
-    # that don't have a trajectory.json inside them
-    all_items = os.listdir(dir)
-    issues = [
-        item
-        for item in all_items
-        if os.path.isdir(os.path.join(dir, item))
-        and os.path.exists(os.path.join(dir, item, "trajectory.json"))
-    ]
 
     # collect all rows in a list first, then create DataFrame once. Can end up being more efficient but is
     # primarly because of the deprecation warnings :)
     trajectory_rows = []
     outputs_x, outputs_y = [], []
 
-    for i, folder in enumerate(issues):
+    # filter to only directories that have trajectory.json, this prevents some issues for folders like 'prompt_logs' or 'logs'
+    # that don't have a trajectory.json inside them
+    for i, (dir_traj, dir_eval) in enumerate(dir_pairs):
+        all_items = os.listdir(dir_traj)
+        issues = [
+            item
+            for item in all_items
+            if os.path.isdir(os.path.join(dir_traj, item))
+            and os.path.exists(os.path.join(dir_traj, item, "trajectory.json"))
+        ]
 
-        print(f"\nNow parsing {folder.split('/')[-1]}\n")
+        for j, folder in enumerate(issues):
 
-        output_x, output_y = parse_trajectory_tree(
-            selected_tree_path=os.path.join(dir, folder, "trajectory.json")
-        )
-        output_id = folder.split("/")[-1]
+            print(f"\nNow parsing {folder.split('/')[-1]}\n")
 
-        if i == 0:
-            outputs_x = output_x
-            outputs_y = output_y
-        else:
-            outputs_x = np.vstack((outputs_x, output_x))
-            outputs_y = np.vstack((outputs_y, output_y))
+            output_x, output_y = parse_trajectory_tree(
+                selected_tree_path=os.path.join(dir_traj, folder, "trajectory.json"),
+                selected_eval_path=os.path.join(dir_eval, folder, "report.json"),
+            )
+            output_id = folder.split("/")[-1]
 
-    with open(os.path.join(output_dir, "fvi_nn_x.npy"), "wb") as f:
+            if i == 0 and j == 0:
+                outputs_x = output_x
+                outputs_y = output_y
+            else:
+                outputs_x = np.vstack((outputs_x, output_x))
+                outputs_y = np.vstack((outputs_y, output_y))
+
+    with open(os.path.join(output_dir, "fvi_nn_x_final.npy"), "wb") as f:
         np.save(f, outputs_x)
-    with open(os.path.join(output_dir, "fvi_nn_y.npy"), "wb") as f:
+    with open(os.path.join(output_dir, "fvi_nn_y_final.npy"), "wb") as f:
         np.save(f, outputs_y)
 
     print(f"dimensions of outputs_x, outputs_y: {outputs_x.shape}, {outputs_y.shape}")
