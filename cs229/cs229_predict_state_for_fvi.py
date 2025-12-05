@@ -62,8 +62,8 @@ def normalize(x, eps=1e-12):
 
 ##### Load data
 
-data = np.load("./datasets/fvi_nn_x.npy")
-labels = np.load("./datasets/fvi_nn_y.npy")
+data = np.load("./datasets/fvi_nn_x_final.npy")
+labels = np.load("./datasets/fvi_nn_y_final.npy")
 train_ratio = 0.9
 batch_size = 128
 hidden_dim = 128
@@ -94,7 +94,9 @@ loss_fn = nn.MSELoss()
 # Remember to use the GPU
 model.to(device)
 
+tol = 1e-3
 num_epochs = 3000
+max_epoch = num_epochs+100 # placeholder value
 train_loss = []
 valua_loss = []
 for epoch in range(num_epochs):
@@ -109,7 +111,6 @@ for epoch in range(num_epochs):
         loss.backward()  # compute the gradients
         optimizer.step()  # take one step using the computed gradients and optimizer
         total_loss += loss.item()  # track your loss
-    print(total_loss)
 
     # Evaluate on validation set
     eval_loss = 0
@@ -121,24 +122,29 @@ for epoch in range(num_epochs):
             eval_loss += loss_fn(yy, yy_pred)
 
     print(
-        f"Epoch {epoch+1}: Train Loss = {total_loss/len(train_loader):.4f}, Val Loss = {eval_loss/len(val_loader):.4}"
+        f"Epoch {epoch}: Train Loss = {total_loss/len(train_loader):.4f}, Val Loss = {eval_loss/len(val_loader):.4}"
     )
     train_loss.append(float(total_loss / len(train_loader)))
     valua_loss.append(float(eval_loss / len(val_loader)))
 
+    if epoch > 0 and np.abs(train_loss[-1] - train_loss[-2]) / train_loss[-2] < tol:
+        print(f"Stopping criterion hit at epoch {epoch}")
+        max_epoch = epoch + 1
+        break
+
 fig, (ax1, ax2) = plt.subplots(1, 2)
-ax1.plot(range(num_epochs), train_loss)
-ax2.plot(range(num_epochs), valua_loss)
+ax1.plot(range(min(max_epoch,num_epochs)), train_loss)
+ax2.plot(range(min(max_epoch,num_epochs)), valua_loss)
 ax1.set_xlabel("Epoch")
 ax2.set_xlabel("Epoch")
 ax1.set_ylabel("Training Loss")
 ax2.set_ylabel("Evaluation Loss")
 plt.savefig(
-    f"./fvi/loss_curves_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized.png"
+    f"./fvi/loss_curves_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized_finaldata.png"
 )
 
 os.makedirs("./fvi/", exist_ok=True)
 torch.save(
     model.state_dict(),
-    f"./fvi/state_predictor_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized.pt",
+    f"./fvi/state_predictor_{batch_size}_{num_epochs}_{hidden_dim}_sgdoptim_normalized_finaldata.pt",
 )
