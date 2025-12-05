@@ -69,9 +69,11 @@ class CompletionResponse(BaseModel):
 
 class CompletionModel(BaseModel):
     model: str = Field(..., description="The model to use for completion")
-    temperature: float = Field(0.0, description="The temperature to use for completion")
-    max_tokens: int = Field(
-        2000, description="The maximum number of tokens to generate"
+    temperature: Optional[float] = Field(
+        default=0.0, description="The temperature to use for completion"
+    )
+    max_tokens: Optional[int] = Field(
+        default=2000, description="The maximum number of tokens to generate"
     )
     timeout: float = Field(
         120.0, description="The timeout in seconds for completion requests"
@@ -103,14 +105,13 @@ class CompletionModel(BaseModel):
     @property
     def router(self) -> Router:
         """Get or create the LiteLLM router for load balancing between endpoints."""
-        
+
         # ./llama-server -hf unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_XL -a "Qwen3-Coder-30B-A3B-Instruct-GGUF-Q4_K_XL" --tensor-split 1,0 --ctx-size 1048576 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8083 -np 4
         # ./llama-server -hf unsloth/Qwen3-Coder-480B-A35B-Instruct-GGUF:Q2_K_L -a "Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L" --tensor-split 0.98,1.02 --ctx-size 131072 --n-gpu-layers 99 --temp 0.7 --min-p 0.0 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 --cache-type-k q4_1 --flash-attn on --jinja --chat-template-file .\templates\chat_template.jinja --port 8082 -np 1 --keep -1
         if self._router is None:
             # Check environment variable or model name to determine which model to use
             use_480b = (
-                os.getenv("QWEN_MODEL_SIZE") == "480b" or
-                "480b" in self.model.lower()
+                os.getenv("QWEN_MODEL_SIZE") == "480b" or "480b" in self.model.lower()
             )
 
             if use_480b:
@@ -122,10 +123,12 @@ class CompletionModel(BaseModel):
                             "model": "openai/Qwen3-Coder-480B-A35B-Instruct-GGUF-Q2_K_L",
                             "api_base": "http://localhost:8082/",
                             "api_key": "noop",
-                        }
+                        },
                     }
                 ]
-                logger.info("Initialized LiteLLM router for 480B model on localhost:8082")
+                logger.info(
+                    "Initialized LiteLLM router for 480B model on localhost:8082"
+                )
             else:
                 # 30B model configuration (default)
                 model_list = [
@@ -135,7 +138,7 @@ class CompletionModel(BaseModel):
                             "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
                             "api_base": "http://localhost:8083/",
                             "api_key": "noop",
-                        }
+                        },
                     },
                     {
                         "model_name": "qwen-coder",
@@ -143,10 +146,12 @@ class CompletionModel(BaseModel):
                             "model": "openai/Qwen3-Coder-30B-A3B-Instruct",
                             "api_base": "http://localhost:8084/",
                             "api_key": "noop",
-                        }
-                    }
+                        },
+                    },
                 ]
-                logger.info("Initialized LiteLLM router for 30B model on localhost:8083, localhost:8084")
+                logger.info(
+                    "Initialized LiteLLM router for 30B model on localhost:8083, localhost:8084"
+                )
 
             self._router = Router(model_list=model_list)
         return self._router
@@ -220,12 +225,14 @@ class CompletionModel(BaseModel):
 
             response_model = TakeAction
 
-        system_prompt += dedent(f"""\n# Response format
+        system_prompt += dedent(
+            f"""\n# Response format
         You must respond with only a JSON object that match the following json_schema:\n
 
         {json.dumps(response_model.model_json_schema(), indent=2, ensure_ascii=False)}
 
-        Make sure to return an instance of the JSON, not the schema itself.""")
+        Make sure to return an instance of the JSON, not the schema itself."""
+        )
 
         messages.insert(0, {"role": "system", "content": system_prompt})
 
