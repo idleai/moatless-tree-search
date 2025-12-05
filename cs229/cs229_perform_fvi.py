@@ -8,16 +8,16 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import os
 
-# from cs229_predict_state_for_fvi import MultiLayerPerceptron
-
 """
-Parts of code drawn from CS229 PS4 inverted pendulum problem
+Perform fitted value iteration (part 3 of 3 of fitted value iteration algorithm implementation).
+Parts of code drawn from CS229 PS4 inverted pendulum problem.
 """
 
 STATE_DIM = 772
 
 ALL_POSSIBLE_ACTIONS = [i for i in range(10)]
 
+##### Define feed-forward neural network architectures #####
 
 class MultiLayerPerceptron(nn.Module):
     def __init__(self, hidden_dim: int):
@@ -49,7 +49,7 @@ class MultiLayerPerceptronScalarOutput(nn.Module):
         return self.layers(x)
 
 
-##### Define the dataset
+##### Define the dataset #####
 
 
 class FVI_VFDataset(Dataset):
@@ -66,15 +66,14 @@ class FVI_VFDataset(Dataset):
         return x, y
 
 
-# def initialize_mdp_data(
-#     state_dim,
-# ) -> dict:
-
-#     theta = np.random.rand(state_dim) * 0.1
-#     return theta
+##### Define helper functions #####
 
 
 def normalize(x, eps=1e-12):
+    """
+    Normalize an inputted vector or array to have mean 0 and stdev 1 in each row.
+    Used for state vectors prior to insertion into training algorithms.
+    """
     if len(x.size()) == 1:
         return (x - torch.mean(x)) / torch.std(x)
     else:
@@ -84,6 +83,9 @@ def normalize(x, eps=1e-12):
 
 
 def calculate_state_prime(model, initial_state, action):
+    """
+    Calculate the next state given a model of the MDP, an initial state, and an action.
+    """
 
     state_initial_w_action = np.concatenate((initial_state, [action]))
     x = normalize(torch.tensor(state_initial_w_action, dtype=torch.float32))
@@ -95,15 +97,17 @@ def calculate_state_prime(model, initial_state, action):
 
 def get_reward(initial_state, final_state):
     """
+    Calculates the reward as the difference in test accuracy before/after a state transition.
     See create_example() in cs229_create_fittedvalueiteration_dataset.py for
-    how the state vector is constructed from individual features
+    how the state vector is constructed from individual features.
     """
     return final_state[2] - initial_state[2]
 
 
 def get_value(state, model, device):
     """
-    Here we assume a nonlinear function
+    Get the value of a particular state using a value function model.
+    Here we use a feed-forward neural network model for the value function.
     """
     with torch.no_grad():
         x = normalize(torch.tensor(state, dtype=torch.float32).to(device))
@@ -115,10 +119,23 @@ def get_value(state, model, device):
 def update_value_function(
     model, device, train_x, train_y, batch_size=5, max_num_epochs=1000, eps=1e-5
 ):
+    """
+    Inner training loop which trains the value function.
+
+    Args:
+        model: a feed-forward neural network model for the value function
+        device: device on which training should occur
+        train_x: numpy array of state examples; dims: (# of samples, state dimension)
+        train_y: numpy array of approximate value associated with each state; dims: (# of samples, )
+        batch_size: Defaults to 5.
+        max_num_epochs: Defaults to 1000.
+        eps: Convergence tolerance. Defaults to 1e-5.
+    """
     train_data = np.concatenate([train_x, np.expand_dims(train_y, axis=1)], axis=1)
     train_dataset = FVI_VFDataset(train_data)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
     loss_fn = nn.MSELoss()
     prev_train_loss = 1e6
     converged = False
@@ -153,38 +170,17 @@ def update_value_function(
 
 
 def get_q_value(state_initial, gamma, state_final, model, device):
+    """
+    Compute the Bellman optimality quantity for a particular state, using the equation for q(a) on p. 189 of CS229 course notes.
+    """
     return get_reward(state_initial, state_final) + gamma * get_value(
         state_final, model, device
     )
 
 
-# def update_value_function(theta, x, y, eps=1e-5, step_size=1e-10):
-#     """
-#     This update rule currently assumes we are solving a linear regression problem.
-#     """
-
-#     n_examples, dim = x.shape
-
-#     Y = np.broadcast_to(y, (dim, n_examples))
-
-#     stopping_criterion_not_reached = True
-#     while stopping_criterion_not_reached:
-
-#         theta_old = deepcopy(theta)
-
-#         # mat: (dim, n_examples)
-#         mat = Y - np.broadcast_to(x @ theta, [dim, n_examples])
-
-#         theta = theta + step_size * np.sum(np.multiply(mat, x.T), axis=1)
-
-#         if np.linalg.norm(theta_old - theta) < eps:
-#             stopping_criterion_not_reached = False
-
-#     return theta
-
-
 def main(
     hidden_dim,
+    nn_hidden_dim,
     nn_batch_size,
     nn_num_epochs,
     batch_size,
@@ -192,17 +188,15 @@ def main(
     max_iter,
     plot=True,
 ):
-    # Seed the randomness of the simulation so this outputs the same thing each time
-    # np.random.seed(0)
 
     GAMMA = 0.99
     TOLERANCE = 0.01
     NO_LEARNING_THRESHOLD = 20
 
     # # Load model for state prediction from (initial_state,action)
-    MODEL_PATH = "./fvi/state_predictor_128_3000_128_sgdoptim_normalized.pt"
+    MODEL_PATH = "./fvi/state_predictor_128_3000_128_sgdoptim_normalized_finaldata.pt"
     # MODEL_PATH = "./fvi/state_predictor.pt"
-    model = MultiLayerPerceptron(hidden_dim=hidden_dim)
+    model = MultiLayerPerceptron(hidden_dim=nn_hidden_dim)
     model.load_state_dict(torch.load(MODEL_PATH, weights_only=True))
     model.eval()
 
@@ -225,14 +219,11 @@ def main(
     # Hence, we will load both datasets.
     # This may lead to some redundant samples, but with randomness and a large buffer,
     # we will consider this to be OK.
-    data_x = np.load("./datasets/fvi_nn_x.npy")
-    data_y = np.load("./datasets/fvi_nn_y.npy")
+    data_x = np.load("./datasets/fvi_nn_x_final.npy")
+    data_y = np.load("./datasets/fvi_nn_y_final.npy")
     data_x = data_x[:, :-1]
     data = np.vstack((data_x, data_y))
     num_samples = data.shape[0]
-
-    # Initialize parameters (of value function that we are trying to learn)
-    # theta = initialize_mdp_data(STATE_DIM)
 
     # This is the criterion to end the simulation.
     consecutive_no_learning_trials = 0
@@ -247,10 +238,6 @@ def main(
         idx = np.random.randint(num_samples, size=batch_size)
         data_batch = data[idx, :]
         y_batch = np.zeros((batch_size,))
-
-        # data_batch = data
-        # batch_size = data_batch.shape[0]
-        # y_batch = np.zeros((batch_size,))
 
         if first_iteration:
             test_convergence_batch = deepcopy(data_batch)
@@ -274,7 +261,7 @@ def main(
 
             y_batch[i] = max(q_value_per_action)
 
-        # update theta for this batch
+        # update value function for this batch
         update_value_function(
             value_function_model, device, data_batch, y_batch, batch_size=batch_size_vf
         )
@@ -294,6 +281,7 @@ def main(
             prior_test_convergence_values = deepcopy(test_convergence_values)
 
         print(f"Concluded iteration {num_iter}. Error: {max_abs_change}.")
+
         # update progress towards training completion if convergence occurs
         if converged_in_one_iteration:
             consecutive_no_learning_trials = consecutive_no_learning_trials + 1
@@ -308,21 +296,23 @@ def main(
         plt.xlabel("Num epochs")
         plt.ylabel("Error (max absolute change in theta)")
         plt.savefig(
-            f"./fvi_error_{nn_batch_size}_{nn_num_epochs}_{hidden_dim}_sgdoptim_{batch_size}.png"
+            f"./fvi_error_{nn_batch_size}_{nn_num_epochs}_{hidden_dim}_adamoptim_normalized_finaldata_{batch_size}_{batch_size_vf}_{max_iter}.png"
         )
 
     return value_function_model
 
 
 if __name__ == "__main__":
-    hidden_dim = 128
+    hidden_dim = 512
+    nn_hidden_dim = 128
     nn_batch_size = 128
     nn_num_epochs = 3000
-    batch_size = 750
+    batch_size = 1000
     batch_size_vf = 5
-    max_iter = 20
+    max_iter = 50
     model = main(
         hidden_dim=hidden_dim,
+        nn_hidden_dim=nn_hidden_dim,
         nn_batch_size=nn_batch_size,
         nn_num_epochs=nn_num_epochs,
         batch_size=batch_size,
@@ -332,5 +322,5 @@ if __name__ == "__main__":
     output_dir = "./fvi"
     torch.save(
         model.state_dict(),
-        f"./fvi/value_function_{batch_size}_{nn_num_epochs}_{hidden_dim}_sgdoptim_normalized_{batch_size}_{batch_size_vf}_{max_iter}.pt",
+        f"./fvi/value_function_{nn_batch_size}_{nn_num_epochs}_{hidden_dim}_{nn_hidden_dim}_adamoptim_normalized_finaldata_{batch_size}_{batch_size_vf}_{max_iter}.pt",
     )
