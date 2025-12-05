@@ -3,11 +3,6 @@ By Bautista Guerra, Tamika Bassman, Taras Vozniuk
 
 This repository contains the code accompanying the authors' work for the CS229 final project at Stanford University, in the fall 2025 offering of the course.
 
-## Quick Navigation
-
-* **Scripts for generating datasets and running supervised fine-tuning (SFT), direct preference optimization (DPO), and fitted value iteration (FVI)** can be found in branch `tb-01`.
-* **Code used for running the SWE-Search framework** can be found in branch `main`.
-
 ## Miscellaneous Notes 
 
 The text of the original Moatless Tree Search repository (which we have forked) is reproduced below.
