@@ -20,7 +20,11 @@ class Reward(StructuredOutput):
     )
     value: int = Field(
         ...,
-        description="A single integer value between -100 and 100 based on your confidence in the correctness of the action and its likelihood of resolving the issue",
-        ge=-100,
-        le=100,
+        description="A single integer value from the value function's calculation",
     )
+    # value: int = Field(
+    #     ...,
+    #     description="A single integer value between -100 and 100 based on your confidence in the correctness of the action and its likelihood of resolving the issue",
+    #     ge=-100,
+    #     le=100,
+    # )
